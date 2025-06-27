@@ -43,9 +43,11 @@ export const Login = () => {
       const mockUser = {
         id: crypto.randomUUID(),
         email: data.email,
+        first_name: data.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        last_name: '',
         name: data.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        role: data.email.includes('admin') ? 'admin' as const : 'service_provider' as const,
-        country: 'south_africa',
+        role: data.email.includes('admin') ? 'admin' as const : data.email.includes('client') ? 'client' as const : 'freelancer' as const,
+        country: 'south_africa' as const,
         tokens_balance: 12,
         subscription_tier: 'pro' as const,
         avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.email}`,
@@ -133,7 +135,7 @@ export const Login = () => {
           <div className="mt-6 p-4 bg-muted/50 rounded-lg">
             <p className="text-sm font-medium mb-2">Demo Accounts:</p>
             <div className="space-y-1 text-xs text-muted-foreground">
-              <p>Service Provider: demo@provider.com</p>
+              <p>Freelancer: demo@freelancer.com</p>
               <p>Client: demo@client.com</p>
               <p>Admin: admin@skillzone.com</p>
               <p className="italic">Use any password</p>

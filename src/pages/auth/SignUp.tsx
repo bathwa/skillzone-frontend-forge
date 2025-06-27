@@ -23,7 +23,7 @@ const signUpSchema = z.object({
   ),
   confirmPassword: z.string(),
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  role: z.enum(['client', 'service_provider']),
+  role: z.enum(['client', 'freelancer']),
   country: z.string().min(1, 'Please select your country'),
   acceptTerms: z.boolean().refine(val => val === true, 'You must accept the terms and conditions'),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -44,12 +44,11 @@ const sadcCountries = [
   { value: 'malawi', label: 'Malawi' },
   { value: 'mozambique', label: 'Mozambique' },
   { value: 'angola', label: 'Angola' },
-  { value: 'drc', label: 'Democratic Republic of Congo' },
+  { value: 'comoros', label: 'Comoros' },
   { value: 'madagascar', label: 'Madagascar' },
   { value: 'mauritius', label: 'Mauritius' },
   { value: 'seychelles', label: 'Seychelles' },
   { value: 'tanzania', label: 'Tanzania' },
-  { value: 'comoros', label: 'Comoros' },
 ]
 
 export const SignUp = () => {
@@ -58,7 +57,7 @@ export const SignUp = () => {
   const { login } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   
-  const preselectedRole = searchParams.get('role') as 'client' | 'service_provider' | null
+  const preselectedRole = searchParams.get('role') as 'client' | 'freelancer' | null
 
   const {
     register,
@@ -70,7 +69,7 @@ export const SignUp = () => {
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      role: preselectedRole || 'service_provider',
+      role: preselectedRole || 'freelancer',
     }
   })
 
@@ -112,13 +111,20 @@ export const SignUp = () => {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000))
       
+      // Split name into first and last name
+      const nameParts = data.name.trim().split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+      
       // Create mock user
       const newUser = {
         id: crypto.randomUUID(),
         email: data.email,
+        first_name: firstName,
+        last_name: lastName,
         name: data.name,
         role: data.role,
-        country: data.country,
+        country: data.country as any,
         tokens_balance: 5, // Welcome bonus
         subscription_tier: 'basic' as const,
       }
@@ -180,15 +186,15 @@ export const SignUp = () => {
                 <div className="space-y-2">
                   <input
                     type="radio"
-                    id="service_provider"
-                    value="service_provider"
+                    id="freelancer"
+                    value="freelancer"
                     {...register('role')}
                     className="sr-only"
                   />
                   <Label
-                    htmlFor="service_provider"
+                    htmlFor="freelancer"
                     className={`flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      selectedRole === 'service_provider'
+                      selectedRole === 'freelancer'
                         ? 'border-primary bg-primary/5'
                         : 'border-muted-foreground/20 hover:border-primary/50'
                     }`}

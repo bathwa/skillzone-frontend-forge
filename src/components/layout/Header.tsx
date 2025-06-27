@@ -86,8 +86,8 @@ export const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.avatar_url} alt={user?.name} />
-                      <AvatarFallback>{user?.name?.[0]?.toUpperCase()}</AvatarFallback>
+                      <AvatarImage src={user?.avatar_url || undefined} alt={user?.name} />
+                      <AvatarFallback>{user?.name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
@@ -121,7 +121,7 @@ export const Header = () => {
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  {user?.role === 'service_provider' && (
+                  {user?.role === 'freelancer' && (
                     <DropdownMenuItem asChild>
                       <Link to="/sp/proposals">
                         <Star className="mr-2 h-4 w-4" />
@@ -185,8 +185,8 @@ export const Header = () => {
                   <div className="border-t pt-4 space-y-2">
                     <div className="flex items-center space-x-2 px-4 py-2">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={user?.avatar_url} alt={user?.name} />
-                        <AvatarFallback>{user?.name?.[0]?.toUpperCase()}</AvatarFallback>
+                        <AvatarImage src={user?.avatar_url || undefined} alt={user?.name} />
+                        <AvatarFallback>{user?.name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
                       </Avatar>
                       <div>
                         <p className="font-medium text-sm">{user?.name}</p>

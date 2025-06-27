@@ -6,147 +6,167 @@ import type { Database } from '@/integrations/supabase/types'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
+// Extended user type that matches our frontend expectations
+interface User extends Omit<Profile, 'first_name' | 'last_name'> {
+  name: string // Computed from first_name + last_name
+  tokens_balance: number // Maps to tokens field
+  subscription_tier: 'basic' | 'pro' | 'premium' // Default subscription handling
+}
+
 interface AuthState {
+  user: User | null
+  session: any
   isAuthenticated: boolean
-  user: Profile | null
-  loading: boolean
-  login: (email: string, password: string) => Promise<void>
-  signup: (email: string, password: string, userData: { first_name?: string; last_name?: string; role?: 'freelancer' | 'client' }) => Promise<void>
-  logout: () => Promise<void>
-  updateProfile: (updates: Partial<Profile>) => Promise<void>
+  login: (userData: Partial<User>) => void
+  logout: () => void
+  updateUser: (userData: Partial<User>) => void
   checkAuth: () => Promise<void>
+}
+
+// Helper function to transform profile to user
+const transformProfileToUser = (profile: Profile): User => {
+  return {
+    ...profile,
+    name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Anonymous User',
+    tokens_balance: profile.tokens || 0,
+    subscription_tier: 'basic' as const, // Default subscription tier
+  }
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      isAuthenticated: false,
       user: null,
-      loading: true,
-      
-      login: async (email: string, password: string) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+      session: null,
+      isAuthenticated: false,
+
+      login: (userData: Partial<User>) => {
+        const user = {
+          id: userData.id || '',
+          email: userData.email || '',
+          first_name: userData.first_name || '',
+          last_name: userData.last_name || '',
+          name: userData.name || `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Anonymous User',
+          role: userData.role || 'freelancer',
+          country: userData.country || null,
+          tokens: userData.tokens_balance || userData.tokens || 5,
+          tokens_balance: userData.tokens_balance || userData.tokens || 5,
+          subscription_tier: userData.subscription_tier || 'basic',
+          avatar_url: userData.avatar_url || null,
+          bio: userData.bio || null,
+          city: userData.city || null,
+          phone: userData.phone || null,
+          website: userData.website || null,
+          hourly_rate: userData.hourly_rate || null,
+          total_earnings: userData.total_earnings || 0,
+          total_jobs_completed: userData.total_jobs_completed || 0,
+          rating: userData.rating || 0,
+          rating_count: userData.rating_count || 0,
+          is_verified: userData.is_verified || false,
+          created_at: userData.created_at || new Date().toISOString(),
+          updated_at: userData.updated_at || new Date().toISOString(),
+        } as User
+
+        set({
+          user,
+          isAuthenticated: true,
         })
-        
-        if (error) throw error
-        
-        if (data.user) {
-          // Fetch user profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', data.user.id)
-            .single()
-            
+      },
+
+      logout: () => {
+        supabase.auth.signOut()
+        set({
+          user: null,
+          session: null,
+          isAuthenticated: false,
+        })
+      },
+
+      updateUser: (userData: Partial<User>) => {
+        const currentUser = get().user
+        if (currentUser) {
           set({
-            isAuthenticated: true,
-            user: profile,
-            loading: false,
+            user: { ...currentUser, ...userData },
           })
         }
       },
-      
-      signup: async (email: string, password: string, userData) => {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              first_name: userData.first_name,
-              last_name: userData.last_name,
-              role: userData.role || 'freelancer',
-            },
-          },
-        })
-        
-        if (error) throw error
-        
-        if (data.user) {
-          // The profile will be created automatically by the trigger
-          // Wait a moment and then fetch it
-          setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', data.user!.id)
-              .single()
-              
-            set({
-              isAuthenticated: true,
-              user: profile,
-              loading: false,
-            })
-          }, 1000)
-        }
-      },
-      
-      logout: async () => {
-        await supabase.auth.signOut()
-        set({
-          isAuthenticated: false,
-          user: null,
-          loading: false,
-        })
-      },
-      
-      updateProfile: async (updates: Partial<Profile>) => {
-        const { user } = get()
-        if (!user) throw new Error('No user logged in')
-        
-        const { data, error } = await supabase
-          .from('profiles')
-          .update(updates)
-          .eq('id', user.id)
-          .select()
-          .single()
-          
-        if (error) throw error
-        
-        set({
-          user: data,
-        })
-      },
-      
+
       checkAuth: async () => {
         try {
           const { data: { session } } = await supabase.auth.getSession()
           
           if (session?.user) {
-            const { data: profile } = await supabase
+            // Fetch user profile from database
+            const { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single()
-              
-            set({
-              isAuthenticated: true,
-              user: profile,
-              loading: false,
-            })
+
+            if (!error && profile) {
+              const user = transformProfileToUser(profile)
+              set({
+                user,
+                session,
+                isAuthenticated: true,
+              })
+            } else {
+              // Profile doesn't exist yet, create basic user from auth data
+              const user = {
+                id: session.user.id,
+                email: session.user.email || '',
+                first_name: session.user.user_metadata?.first_name || '',
+                last_name: session.user.user_metadata?.last_name || '',
+                name: session.user.user_metadata?.name || 'Anonymous User',
+                role: 'freelancer' as const,
+                country: null,
+                tokens: 5,
+                tokens_balance: 5,
+                subscription_tier: 'basic' as const,
+                avatar_url: null,
+                bio: null,
+                city: null,
+                phone: null,
+                website: null,
+                hourly_rate: null,
+                total_earnings: 0,
+                total_jobs_completed: 0,
+                rating: 0,
+                rating_count: 0,
+                is_verified: false,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              } as User
+
+              set({
+                user,
+                session,
+                isAuthenticated: true,
+              })
+            }
           } else {
             set({
-              isAuthenticated: false,
               user: null,
-              loading: false,
+              session: null,
+              isAuthenticated: false,
             })
           }
         } catch (error) {
-          console.error('Auth check failed:', error)
+          console.error('Auth check error:', error)
           set({
-            isAuthenticated: false,
             user: null,
-            loading: false,
+            session: null,
+            isAuthenticated: false,
           })
         }
       },
     }),
     {
-      name: 'skillzone-auth',
+      name: 'auth-storage',
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
     }
   )
 )
-
-// Initialize auth check
-useAuthStore.getState().checkAuth()
