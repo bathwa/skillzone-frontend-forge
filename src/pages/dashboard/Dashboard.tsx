@@ -120,7 +120,8 @@ export const Dashboard = () => {
   }
 
   const isClient = user.role === 'client'
-  const stats = isClient ? mockStats.client : mockStats.service_provider
+  const clientStats = mockStats.client
+  const serviceProviderStats = mockStats.service_provider
   const unreadNotifications = notifications.filter(n => !n.read_at).length
 
   return (
@@ -159,7 +160,7 @@ export const Dashboard = () => {
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.active_opportunities}</div>
+                <div className="text-2xl font-bold">{clientStats.active_opportunities}</div>
                 <p className="text-xs text-muted-foreground">Projects seeking talent</p>
               </CardContent>
             </Card>
@@ -169,7 +170,7 @@ export const Dashboard = () => {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.total_proposals}</div>
+                <div className="text-2xl font-bold">{clientStats.total_proposals}</div>
                 <p className="text-xs text-muted-foreground">Proposals received</p>
               </CardContent>
             </Card>
@@ -179,7 +180,7 @@ export const Dashboard = () => {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${stats.total_spent}</div>
+                <div className="text-2xl font-bold">${clientStats.total_spent}</div>
                 <p className="text-xs text-muted-foreground">Investment in projects</p>
               </CardContent>
             </Card>
@@ -189,7 +190,7 @@ export const Dashboard = () => {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.active_projects}</div>
+                <div className="text-2xl font-bold">{clientStats.active_projects}</div>
                 <p className="text-xs text-muted-foreground">In progress</p>
               </CardContent>
             </Card>
@@ -202,7 +203,7 @@ export const Dashboard = () => {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.active_proposals}</div>
+                <div className="text-2xl font-bold">{serviceProviderStats.active_proposals}</div>
                 <p className="text-xs text-muted-foreground">Awaiting response</p>
               </CardContent>
             </Card>
@@ -212,7 +213,7 @@ export const Dashboard = () => {
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.won_projects}</div>
+                <div className="text-2xl font-bold">{serviceProviderStats.won_projects}</div>
                 <p className="text-xs text-muted-foreground">Successful proposals</p>
               </CardContent>
             </Card>
@@ -222,7 +223,7 @@ export const Dashboard = () => {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${stats.total_earned}</div>
+                <div className="text-2xl font-bold">${serviceProviderStats.total_earned}</div>
                 <p className="text-xs text-muted-foreground">Career earnings</p>
               </CardContent>
             </Card>
@@ -232,7 +233,7 @@ export const Dashboard = () => {
                 <Star className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.client_rating}</div>
+                <div className="text-2xl font-bold">{serviceProviderStats.client_rating}</div>
                 <p className="text-xs text-muted-foreground">Average rating</p>
               </CardContent>
             </Card>
