@@ -15,6 +15,9 @@ import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
 import { apiService } from '@/lib/services/apiService'
 
+// Admin email detection (same as Login.tsx)
+const ADMIN_EMAILS = ['abathwabiz@gmail.com', 'admin@abathwa.com']
+
 const signUpSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters').regex(
@@ -29,6 +32,9 @@ const signUpSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).refine((data) => !ADMIN_EMAILS.includes(data.email.toLowerCase()), {
+  message: "Admin emails cannot sign up through this form. Please use the login page.",
+  path: ["email"],
 })
 
 type SignUpFormData = z.infer<typeof signUpSchema>
@@ -108,6 +114,8 @@ export const SignUp = () => {
     setIsLoading(true)
     
     try {
+      console.log('Signup attempt with data:', { ...data, password: '[HIDDEN]' })
+      
       // Real API call to create user account
       const response = await apiService.signup({
         email: data.email,
@@ -115,17 +123,21 @@ export const SignUp = () => {
         first_name: data.name.split(' ')[0],
         last_name: data.name.split(' ').slice(1).join(' '),
         role: data.role,
-        country: data.country,
+        country: data.country as any, // Type assertion for country code
       })
+      
+      console.log('Signup response:', response)
       
       if (response.success && response.data) {
         login(response.data)
         toast.success('Account created successfully! Welcome to SkillZone!')
         navigate('/dashboard')
       } else {
+        console.error('Signup failed:', response.error)
         toast.error(response.error || 'Failed to create account. Please try again.')
       }
     } catch (error) {
+      console.error('Signup error:', error)
       toast.error('Account creation failed. Please try again.')
     } finally {
       setIsLoading(false)

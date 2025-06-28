@@ -181,6 +181,7 @@ class ApiService {
       })
 
       if (authError || !authData.user) {
+        console.error('Auth error:', authError)
         return {
           data: null,
           error: authError?.message || 'Failed to create user account',
@@ -188,25 +189,30 @@ class ApiService {
         }
       }
 
-      // Create profile
+      // Create profile with proper type casting
       const profileData = {
         id: authData.user.id,
         email: userData.email,
         first_name: userData.first_name,
         last_name: userData.last_name,
-        role: userData.role,
+        role: userData.role as Database['public']['Enums']['user_role'],
         country: userData.country,
         tokens: 5, // Welcome bonus
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       }
+
+      console.log('Creating profile with data:', profileData)
 
       const { error: profileError } = await supabase
         .from('profiles')
         .insert([profileData])
 
       if (profileError) {
+        console.error('Profile creation error:', profileError)
         return {
           data: null,
-          error: 'Failed to create user profile',
+          error: `Failed to create user profile: ${profileError.message}`,
           success: false,
         }
       }
@@ -229,6 +235,7 @@ class ApiService {
         success: true,
       }
     } catch (error) {
+      console.error('Signup error:', error)
       return {
         data: null,
         error: 'Failed to create account',
