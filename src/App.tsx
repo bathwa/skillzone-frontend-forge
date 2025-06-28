@@ -12,6 +12,10 @@ import { ForgotPassword } from "@/pages/auth/ForgotPassword";
 import { OpportunityList } from "@/pages/opportunities/OpportunityList";
 import { SkillProviderList } from "@/pages/skills/SkillProviderList";
 import { Dashboard } from "@/pages/dashboard/Dashboard";
+import { MyProfile } from "@/pages/MyProfile";
+import { Notifications } from "@/pages/Notifications";
+import { MyTokens } from "@/pages/MyTokens";
+import { ClientOpportunities } from "@/pages/ClientOpportunities";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -37,10 +41,10 @@ const App = () => (
               <Route path="opportunities" element={<OpportunityList />} />
               <Route path="skills" element={<SkillProviderList />} />
               <Route path="dashboard" element={<Dashboard />} />
-              <Route path="my-profile" element={<div className="container py-8"><h1>My Profile - Coming Soon</h1></div>} />
-              <Route path="notifications" element={<div className="container py-8"><h1>Notifications - Coming Soon</h1></div>} />
-              <Route path="my-tokens" element={<div className="container py-8"><h1>My Tokens - Coming Soon</h1></div>} />
-              <Route path="client/opportunities" element={<div className="container py-8"><h1>My Opportunities - Coming Soon</h1></div>} />
+              <Route path="my-profile" element={<MyProfile />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="my-tokens" element={<MyTokens />} />
+              <Route path="client/opportunities" element={<ClientOpportunities />} />
               <Route path="sp/proposals" element={<div className="container py-8"><h1>My Proposals - Coming Soon</h1></div>} />
               <Route path="about" element={<div className="container py-8"><h1>About Us - Coming Soon</h1></div>} />
               <Route path="contact" element={<div className="container py-8"><h1>Contact Us - Coming Soon</h1></div>} />

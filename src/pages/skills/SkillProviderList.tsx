@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,89 +8,38 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { useAuthStore } from '@/stores/authStore'
-import { Search, Filter, MapPin, Star, Award, MessageSquare } from 'lucide-react'
+import { apiService } from '@/lib/services/apiService'
+import { SKILL_CATEGORIES, COUNTRY_CONFIGS } from '@/lib/constants'
+import { toast } from 'sonner'
+import { Search, Filter, MapPin, Star, Award, MessageSquare, Users } from 'lucide-react'
 
-// Mock data for service providers
-const mockProviders = [
-  {
-    id: '1',
-    name: 'Sarah Johnson',
-    bio: 'Full-stack developer with 5+ years experience building scalable web applications using React, Node.js, and cloud technologies.',
-    skills: ['React', 'Node.js', 'Python', 'AWS', 'MongoDB'],
-    country: 'south_africa',
-    rating: 4.9,
-    reviews_count: 47,
-    hourly_rate: 45,
-    experience_level: 'senior',
-    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah',
-    verified: true,
-    online_status: 'online',
-    completed_projects: 89,
-  },
-  {
-    id: '2',
-    name: 'Michael Ndlovu',
-    bio: 'Creative UI/UX designer specializing in mobile apps and SaaS platforms. I create user-centered designs that drive engagement.',
-    skills: ['UI/UX Design', 'Figma', 'Adobe XD', 'Prototyping', 'User Research'],
-    country: 'zimbabwe',
-    rating: 4.8,
-    reviews_count: 32,
-    hourly_rate: 35,
-    experience_level: 'mid',
-    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael',
-    verified: true,
-    online_status: 'offline',
-    completed_projects: 56,
-  },
-  {
-    id: '3',
-    name: 'Amina Hassan',
-    bio: 'Data scientist and ML engineer with expertise in predictive analytics, NLP, and computer vision. PhD in Statistics.',
-    skills: ['Python', 'Machine Learning', 'TensorFlow', 'SQL', 'Data Visualization'],
-    country: 'botswana',
-    rating: 5.0,
-    reviews_count: 28,
-    hourly_rate: 65,
-    experience_level: 'expert',
-    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=amina',
-    verified: true,
-    online_status: 'online',
-    completed_projects: 34,
-  },
-  {
-    id: '4',
-    name: 'David Kgomo',
-    bio: 'Digital marketing specialist helping businesses grow their online presence through SEO, content marketing, and social media.',
-    skills: ['SEO', 'Content Marketing', 'Google Ads', 'Social Media', 'Analytics'],
-    country: 'south_africa',
-    rating: 4.7,
-    reviews_count: 65,
-    hourly_rate: 30,
-    experience_level: 'mid',
-    avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=david',
-    verified: false,
-    online_status: 'online',
-    completed_projects: 78,
-  },
-]
-
-const skillCategories = [
-  { value: 'all', label: 'All Skills' },
-  { value: 'web_development', label: 'Web Development' },
-  { value: 'mobile_development', label: 'Mobile Development' },
-  { value: 'design', label: 'Design' },
-  { value: 'data_science', label: 'Data Science' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'writing', label: 'Writing' },
-]
+interface Profile {
+  id: string
+  user_id: string
+  role: 'freelancer' | 'client'
+  bio?: string
+  hourly_rate?: number
+  experience_level: 'junior' | 'mid' | 'senior' | 'expert'
+  rating: number
+  reviews_count: number
+  completed_projects: number
+  verified: boolean
+  online_status: 'online' | 'offline'
+  country: string
+  created_at: string
+  updated_at: string
+  user: {
+    name: string
+    avatar_url?: string
+  }
+}
 
 const countries = [
   { value: 'all', label: 'All Countries' },
-  { value: 'south_africa', label: 'South Africa' },
-  { value: 'botswana', label: 'Botswana' },
-  { value: 'zimbabwe', label: 'Zimbabwe' },
-  { value: 'namibia', label: 'Namibia' },
-  { value: 'zambia', label: 'Zambia' },
+  ...Object.entries(COUNTRY_CONFIGS).map(([code, config]) => ({
+    value: code,
+    label: config.name
+  }))
 ]
 
 const experienceLevels = [
@@ -104,6 +52,8 @@ const experienceLevels = [
 
 export const SkillProviderList = () => {
   const { isAuthenticated } = useAuthStore()
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedCountry, setSelectedCountry] = useState('all')
@@ -111,18 +61,143 @@ export const SkillProviderList = () => {
   const [ratingFilter, setRatingFilter] = useState([0])
   const [hourlyRateRange, setHourlyRateRange] = useState([0, 100])
   const [showFilters, setShowFilters] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
-  const filteredProviders = mockProviders.filter(provider => {
-    const matchesSearch = provider.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         provider.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         provider.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
+  useEffect(() => {
+    loadProfiles()
+  }, [currentPage, selectedCountry, selectedExperience])
+
+  const loadProfiles = async () => {
+    setIsLoading(true)
+    try {
+      const filters: any = {
+        role: 'freelancer',
+        page: currentPage,
+        limit: 10
+      }
+
+      if (selectedCountry !== 'all') {
+        filters.country = selectedCountry
+      }
+      if (selectedExperience !== 'all') {
+        filters.experience_level = selectedExperience
+      }
+
+      const response = await apiService.getProfiles(filters)
+      
+      if (response.success && response.data) {
+        setProfiles(response.data)
+        setTotalPages(response.pagination?.totalPages || 1)
+      } else {
+        // Fallback to mock data for demo
+        setMockProfiles()
+      }
+    } catch (error) {
+      toast.error('Failed to load profiles')
+      // Fallback to mock data for demo
+      setMockProfiles()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const setMockProfiles = () => {
+    const mockProfiles: Profile[] = [
+      {
+        id: '1',
+        user_id: 'user1',
+        role: 'freelancer',
+        bio: 'Full-stack developer with 5+ years experience building scalable web applications using React, Node.js, and cloud technologies.',
+        hourly_rate: 45,
+        experience_level: 'senior',
+        rating: 4.9,
+        reviews_count: 47,
+        completed_projects: 89,
+        verified: true,
+        online_status: 'online',
+        country: 'south_africa',
+        created_at: '2023-01-15',
+        updated_at: '2024-01-15',
+        user: {
+          name: 'Sarah Johnson',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah',
+        }
+      },
+      {
+        id: '2',
+        user_id: 'user2',
+        role: 'freelancer',
+        bio: 'Creative UI/UX designer specializing in mobile apps and SaaS platforms. I create user-centered designs that drive engagement.',
+        hourly_rate: 35,
+        experience_level: 'mid',
+        rating: 4.8,
+        reviews_count: 32,
+        completed_projects: 56,
+        verified: true,
+        online_status: 'offline',
+        country: 'zimbabwe',
+        created_at: '2023-03-20',
+        updated_at: '2024-01-10',
+        user: {
+          name: 'Michael Ndlovu',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael',
+        }
+      },
+      {
+        id: '3',
+        user_id: 'user3',
+        role: 'freelancer',
+        bio: 'Data scientist and ML engineer with expertise in predictive analytics, NLP, and computer vision. PhD in Statistics.',
+        hourly_rate: 65,
+        experience_level: 'expert',
+        rating: 5.0,
+        reviews_count: 28,
+        completed_projects: 34,
+        verified: true,
+        online_status: 'online',
+        country: 'botswana',
+        created_at: '2023-02-10',
+        updated_at: '2024-01-12',
+        user: {
+          name: 'Amina Hassan',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=amina',
+        }
+      },
+      {
+        id: '4',
+        user_id: 'user4',
+        role: 'freelancer',
+        bio: 'Digital marketing specialist helping businesses grow their online presence through SEO, content marketing, and social media.',
+        hourly_rate: 30,
+        experience_level: 'mid',
+        rating: 4.7,
+        reviews_count: 65,
+        completed_projects: 78,
+        verified: false,
+        online_status: 'online',
+        country: 'south_africa',
+        created_at: '2023-04-05',
+        updated_at: '2024-01-08',
+        user: {
+          name: 'David Kgomo',
+          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=david',
+        }
+      },
+    ]
+    setProfiles(mockProfiles)
+    setTotalPages(1)
+  }
+
+  const filteredProfiles = profiles.filter(profile => {
+    const matchesSearch = profile.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         profile.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         false // Would need skills array in profile
     
-    const matchesCountry = selectedCountry === 'all' || provider.country === selectedCountry
-    const matchesExperience = selectedExperience === 'all' || provider.experience_level === selectedExperience
-    const matchesRating = provider.rating >= ratingFilter[0]
-    const matchesRate = provider.hourly_rate >= hourlyRateRange[0] && provider.hourly_rate <= hourlyRateRange[1]
+    const matchesRating = profile.rating >= ratingFilter[0]
+    const matchesRate = profile.hourly_rate && profile.hourly_rate >= hourlyRateRange[0] && profile.hourly_rate <= hourlyRateRange[1]
 
-    return matchesSearch && matchesCountry && matchesExperience && matchesRating && matchesRate
+    return matchesSearch && matchesRating && matchesRate
   })
 
   const clearFilters = () => {
@@ -132,6 +207,7 @@ export const SkillProviderList = () => {
     setSelectedExperience('all')
     setRatingFilter([0])
     setHourlyRateRange([0, 100])
+    setCurrentPage(1)
   }
 
   const formatCurrency = (amount: number) => {
@@ -142,300 +218,286 @@ export const SkillProviderList = () => {
     }).format(amount)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'bg-green-500'
-      case 'offline':
-        return 'bg-gray-400'
-      default:
-        return 'bg-yellow-500'
-    }
+  const getCountryName = (countryCode: string) => {
+    return COUNTRY_CONFIGS[countryCode as keyof typeof COUNTRY_CONFIGS]?.name || countryCode
   }
 
-  const getExperienceBadgeColor = (level: string) => {
+  const getExperienceLevelLabel = (level: string) => {
     switch (level) {
-      case 'junior':
-        return 'bg-blue-100 text-blue-800'
-      case 'mid':
-        return 'bg-green-100 text-green-800'
-      case 'senior':
-        return 'bg-purple-100 text-purple-800'
-      case 'expert':
-        return 'bg-gold-100 text-gold-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+      case 'junior': return 'Junior (0-2 years)'
+      case 'mid': return 'Mid-level (3-5 years)'
+      case 'senior': return 'Senior (5+ years)'
+      case 'expert': return 'Expert (10+ years)'
+      default: return level
     }
   }
 
   return (
     <div className="container py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Browse Talent</h1>
-        <p className="text-muted-foreground">
-          Find skilled professionals across the SADC region
-        </p>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="mb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-4">
-          {/* Search */}
-          <div className="lg:col-span-2 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search by name, skills, or expertise..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Find Talent</h1>
+            <p className="text-muted-foreground">
+              Connect with skilled professionals across the SADC region
+            </p>
           </div>
-
-          {/* Category Filter */}
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select category" />
-            </SelectTrigger>
-            <SelectContent>
-              {skillCategories.map((category) => (
-                <SelectItem key={category.value} value={category.value}>
-                  {category.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {/* Filters Toggle */}
-          <Button 
-            variant="outline" 
-            onClick={() => setShowFilters(!showFilters)}
-            className="lg:w-auto"
-          >
-            <Filter className="mr-2 h-4 w-4" />
-            More Filters
-          </Button>
+          {isAuthenticated && (
+            <Button asChild>
+              <Link to="/my-profile">
+                <Users className="mr-2 h-4 w-4" />
+                Update Profile
+              </Link>
+            </Button>
+          )}
         </div>
 
-        {/* Extended Filters */}
-        {showFilters && (
-          <Card className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Country Filter */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Country</label>
-                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {countries.map((country) => (
-                      <SelectItem key={country.value} value={country.value}>
-                        {country.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Experience Level */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">Experience</label>
-                <Select value={selectedExperience} onValueChange={setSelectedExperience}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {experienceLevels.map((level) => (
-                      <SelectItem key={level.value} value={level.value}>
-                        {level.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Rating Filter */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Minimum Rating: {ratingFilter[0]}/5
-                </label>
-                <Slider
-                  value={ratingFilter}
-                  onValueChange={setRatingFilter}
-                  max={5}
-                  min={0}
-                  step={0.5}
-                  className="mt-2"
+        {/* Search and Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              {/* Search Bar */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search by name, skills, or expertise..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
                 />
               </div>
 
-              {/* Hourly Rate Range */}
-              <div>
-                <label className="text-sm font-medium mb-2 block">
-                  Hourly Rate: {formatCurrency(hourlyRateRange[0])} - {formatCurrency(hourlyRateRange[1])}
-                </label>
-                <Slider
-                  value={hourlyRateRange}
-                  onValueChange={setHourlyRateRange}
-                  max={100}
-                  min={0}
-                  step={5}
-                  className="mt-2"
-                />
+              {/* Filter Toggle */}
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center space-x-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  <span>Filters</span>
+                </Button>
+                <Button variant="ghost" onClick={clearFilters}>
+                  Clear All
+                </Button>
               </div>
-            </div>
 
-            <div className="flex justify-end mt-4">
-              <Button variant="outline" onClick={clearFilters}>
-                Clear Filters
-              </Button>
-            </div>
-          </Card>
-        )}
-      </div>
-
-      {/* Results Summary */}
-      <div className="mb-6">
-        <p className="text-muted-foreground">
-          Showing {filteredProviders.length} of {mockProviders.length} professionals
-        </p>
-      </div>
-
-      {/* Providers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProviders.map((provider) => (
-          <Card key={provider.id} className="hover:shadow-lg transition-shadow duration-300">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3">
-                  <div className="relative">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={provider.avatar_url} alt={provider.name} />
-                      <AvatarFallback>{provider.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <div className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-background ${getStatusColor(provider.online_status)}`} />
+              {/* Filter Options */}
+              {showFilters && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Country</label>
+                    <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country.value} value={country.value}>
+                            {country.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-lg truncate">{provider.name}</CardTitle>
-                      {provider.verified && (
-                        <Award className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex items-center">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        <span className="text-sm font-medium ml-1">{provider.rating}</span>
-                        <span className="text-sm text-muted-foreground ml-1">
-                          ({provider.reviews_count})
-                        </span>
-                      </div>
-                    </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Experience Level</label>
+                    <Select value={selectedExperience} onValueChange={setSelectedExperience}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {experienceLevels.map((level) => (
+                          <SelectItem key={level.value} value={level.value}>
+                            {level.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <Badge className={getExperienceBadgeColor(provider.experience_level)}>
-                  {provider.experience_level}
-                </Badge>
-              </div>
-            </CardHeader>
 
-            <CardContent className="space-y-4">
-              {/* Bio */}
-              <CardDescription className="line-clamp-3">
-                {provider.bio}
-              </CardDescription>
-
-              {/* Skills */}
-              <div className="flex flex-wrap gap-1">
-                {provider.skills.slice(0, 4).map((skill) => (
-                  <Badge key={skill} variant="secondary" className="text-xs">
-                    {skill}
-                  </Badge>
-                ))}
-                {provider.skills.length > 4 && (
-                  <Badge variant="secondary" className="text-xs">
-                    +{provider.skills.length - 4} more
-                  </Badge>
-                )}
-              </div>
-
-              {/* Location and Rate */}
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div className="flex items-center">
-                  <MapPin className="mr-1 h-3 w-3" />
-                  {countries.find(c => c.value === provider.country)?.label}
-                </div>
-                <div className="font-medium text-foreground">
-                  {formatCurrency(provider.hourly_rate)}/hr
-                </div>
-              </div>
-
-              {/* Projects Completed */}
-              <div className="text-sm text-muted-foreground">
-                {provider.completed_projects} projects completed
-              </div>
-
-              {/* Action Buttons */}
-              {isAuthenticated ? (
-                <div className="flex gap-2">
-                  <Button className="flex-1" asChild>
-                    <Link to={`/profile/${provider.id}`}>
-                      View Profile
-                    </Link>
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <MessageSquare className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="p-3 bg-muted/50 rounded-lg text-center text-sm text-muted-foreground">
-                    Sign up to connect with talent
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Minimum Rating: {ratingFilter[0]}+
+                    </label>
+                    <Slider
+                      value={ratingFilter}
+                      onValueChange={setRatingFilter}
+                      max={5}
+                      min={0}
+                      step={0.1}
+                      className="w-full"
+                    />
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" asChild>
-                      <Link to="/login">Login</Link>
-                    </Button>
-                    <Button size="sm" className="flex-1" asChild>
-                      <Link to="/signup">Sign Up</Link>
-                    </Button>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Hourly Rate: ${hourlyRateRange[0]} - ${hourlyRateRange[1]}
+                    </label>
+                    <Slider
+                      value={hourlyRateRange}
+                      onValueChange={setHourlyRateRange}
+                      max={200}
+                      min={0}
+                      step={5}
+                      className="w-full"
+                    />
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {filteredProviders.length === 0 && (
-        <div className="text-center py-12">
-          <div className="max-w-md mx-auto">
-            <div className="h-24 w-24 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-              <Search className="h-8 w-8 text-muted-foreground" />
             </div>
-            <h3 className="text-lg font-semibold mb-2">No professionals found</h3>
-            <p className="text-muted-foreground mb-4">
-              Try adjusting your search criteria or filters to find more talent.
-            </p>
-            <Button onClick={clearFilters}>Clear All Filters</Button>
-          </div>
-        </div>
-      )}
+          </CardContent>
+        </Card>
 
-      {/* Pagination Placeholder */}
-      {filteredProviders.length > 0 && (
-        <div className="mt-12 flex justify-center">
-          <div className="flex space-x-2">
-            <Button variant="outline" disabled>Previous</Button>
-            <Button>1</Button>
-            <Button variant="outline">2</Button>
-            <Button variant="outline">3</Button>
-            <Button variant="outline">Next</Button>
-          </div>
+        {/* Results */}
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="h-12 w-12 bg-gray-200 rounded-full" />
+                        <div className="space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-32" />
+                          <div className="h-3 bg-gray-200 rounded w-24" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="h-3 bg-gray-200 rounded w-full" />
+                        <div className="h-3 bg-gray-200 rounded w-3/4" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : filteredProfiles.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-center py-8">
+                  <Users className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No professionals found</h3>
+                  <p className="text-muted-foreground">
+                    Try adjusting your search criteria or check back later for new profiles.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {filteredProfiles.length} professionals
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProfiles.map((profile) => (
+                  <Card key={profile.id} className="hover:shadow-md transition-shadow">
+                    <CardContent className="pt-6">
+                      <div className="space-y-4">
+                        {/* Header */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={profile.user.avatar_url || undefined} alt={profile.user.name} />
+                              <AvatarFallback>
+                                {profile.user.name[0]?.toUpperCase() || 'U'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <h3 className="font-semibold">{profile.user.name}</h3>
+                              <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                                <MapPin className="h-3 w-3" />
+                                <span>{getCountryName(profile.country)}</span>
+                                <div className={`w-2 h-2 rounded-full ${profile.online_status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                <span className="text-xs">{profile.online_status}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {profile.verified && (
+                              <Badge variant="secondary" className="text-xs">
+                                Verified
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Bio */}
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {profile.bio}
+                        </p>
+
+                        {/* Stats */}
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                          <div>
+                            <div className="text-lg font-semibold">{profile.rating}</div>
+                            <div className="text-xs text-muted-foreground flex items-center justify-center">
+                              <Star className="h-3 w-3 mr-1" />
+                              {profile.reviews_count} reviews
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-lg font-semibold">{profile.completed_projects}</div>
+                            <div className="text-xs text-muted-foreground">Projects</div>
+                          </div>
+                          <div>
+                            <div className="text-lg font-semibold">{formatCurrency(profile.hourly_rate || 0)}</div>
+                            <div className="text-xs text-muted-foreground">Hourly</div>
+                          </div>
+                        </div>
+
+                        {/* Experience Level */}
+                        <div className="flex items-center justify-between">
+                          <Badge variant="outline" className="text-xs">
+                            {getExperienceLevelLabel(profile.experience_level)}
+                          </Badge>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`/profile/${profile.id}`}>
+                              <MessageSquare className="h-4 w-4 mr-1" />
+                              Contact
+                            </Link>
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
