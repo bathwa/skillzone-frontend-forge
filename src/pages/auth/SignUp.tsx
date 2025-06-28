@@ -315,7 +315,11 @@ export const SignUp = () => {
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="acceptTerms"
-                {...register('acceptTerms')}
+                checked={watch('acceptTerms')}
+                onCheckedChange={(checked) => {
+                  setValue('acceptTerms', checked === true)
+                  clearErrors('acceptTerms')
+                }}
                 className={errors.acceptTerms ? 'border-destructive' : ''}
               />
               <Label htmlFor="acceptTerms" className="text-sm">

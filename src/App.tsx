@@ -11,6 +11,7 @@ import { SignUp } from "@/pages/auth/SignUp";
 import { Login } from "@/pages/auth/Login";
 import { ForgotPassword } from "@/pages/auth/ForgotPassword";
 import { OpportunityList } from "@/pages/opportunities/OpportunityList";
+import { NewOpportunity } from "@/pages/opportunities/NewOpportunity";
 import { SkillProviderList } from "@/pages/skills/SkillProviderList";
 import { Dashboard } from "@/pages/dashboard/Dashboard";
 import { MyProfile } from "@/pages/MyProfile";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Landing />} />
               <Route path="opportunities" element={<OpportunityList />} />
+              <Route path="opportunities/new" element={<NewOpportunity />} />
               <Route path="skills" element={<SkillProviderList />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="my-profile" element={<MyProfile />} />
