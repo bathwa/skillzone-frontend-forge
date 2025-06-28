@@ -10,6 +10,7 @@ CREATE TYPE public.project_status AS ENUM ('active', 'completed', 'cancelled', '
 CREATE TYPE public.payment_status AS ENUM ('pending', 'completed', 'failed', 'refunded');
 CREATE TYPE public.skill_level AS ENUM ('beginner', 'intermediate', 'advanced', 'expert');
 CREATE TYPE public.country_code AS ENUM ('south_africa', 'botswana', 'zimbabwe', 'namibia', 'zambia', 'lesotho', 'eswatini', 'malawi', 'mozambique', 'tanzania', 'angola', 'madagascar', 'mauritius', 'seychelles', 'comoros');
+CREATE TYPE public.account_type AS ENUM ('mobile_wallet', 'bank_account', 'digital_wallet');
 
 -- Create profiles table (linked to auth.users)
 CREATE TABLE public.profiles (
@@ -31,6 +32,34 @@ CREATE TABLE public.profiles (
     rating_count INTEGER DEFAULT 0,
     is_verified BOOLEAN DEFAULT FALSE,
     tokens INTEGER DEFAULT 5,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id)
+);
+
+-- Create escrow_accounts table
+CREATE TABLE public.escrow_accounts (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    country country_code NOT NULL,
+    account_name TEXT NOT NULL,
+    account_number TEXT NOT NULL,
+    account_type account_type NOT NULL,
+    provider TEXT,
+    phone_number TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (id)
+);
+
+-- Create support_contacts table
+CREATE TABLE public.support_contacts (
+    id UUID NOT NULL DEFAULT gen_random_uuid(),
+    country country_code NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT NOT NULL,
+    whatsapp TEXT NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     PRIMARY KEY (id)
@@ -117,7 +146,7 @@ CREATE TABLE public.payments (
     id UUID NOT NULL DEFAULT gen_random_uuid(),
     project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
     client_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    freelancer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    freelancer_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
     amount DECIMAL(10,2) NOT NULL,
     platform_fee DECIMAL(10,2) NOT NULL,
     freelancer_amount DECIMAL(10,2) NOT NULL,
@@ -199,6 +228,8 @@ INSERT INTO storage.buckets (id, name, public) VALUES
 
 -- Enable RLS on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.escrow_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.support_contacts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.skills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_skills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.opportunities ENABLE ROW LEVEL SECURITY;
@@ -211,126 +242,165 @@ ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.token_transactions ENABLE ROW LEVEL SECURITY;
 
--- Create RLS policies for profiles
-CREATE POLICY "Users can view all profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+-- RLS Policies for profiles
+CREATE POLICY "Users can view their own profile" ON public.profiles
+    FOR SELECT USING (auth.uid() = id);
 
--- Create RLS policies for skills (public read)
-CREATE POLICY "Anyone can view skills" ON public.skills FOR SELECT USING (true);
-CREATE POLICY "Only admins can modify skills" ON public.skills FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin')
-);
+CREATE POLICY "Users can update their own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
 
--- Create RLS policies for user_skills
-CREATE POLICY "Anyone can view user skills" ON public.user_skills FOR SELECT USING (true);
-CREATE POLICY "Users can manage own skills" ON public.user_skills FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view other profiles" ON public.profiles
+    FOR SELECT USING (true);
 
--- Create RLS policies for opportunities
-CREATE POLICY "Anyone can view open opportunities" ON public.opportunities FOR SELECT USING (true);
-CREATE POLICY "Clients can create opportunities" ON public.opportunities FOR INSERT WITH CHECK (auth.uid() = client_id);
-CREATE POLICY "Clients can update own opportunities" ON public.opportunities FOR UPDATE USING (auth.uid() = client_id);
-CREATE POLICY "Clients can delete own opportunities" ON public.opportunities FOR DELETE USING (auth.uid() = client_id);
+CREATE POLICY "Admins can manage all profiles" ON public.profiles
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
 
--- Create RLS policies for proposals
-CREATE POLICY "Users can view proposals for their opportunities or own proposals" ON public.proposals FOR SELECT USING (
-    auth.uid() = freelancer_id OR 
-    auth.uid() IN (SELECT client_id FROM public.opportunities WHERE id = opportunity_id)
-);
-CREATE POLICY "Freelancers can create proposals" ON public.proposals FOR INSERT WITH CHECK (auth.uid() = freelancer_id);
-CREATE POLICY "Freelancers can update own proposals" ON public.proposals FOR UPDATE USING (auth.uid() = freelancer_id);
-CREATE POLICY "Freelancers can delete own proposals" ON public.proposals FOR DELETE USING (auth.uid() = freelancer_id);
+-- RLS Policies for escrow_accounts (admin only)
+CREATE POLICY "Admins can manage escrow accounts" ON public.escrow_accounts
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
 
--- Create RLS policies for projects
-CREATE POLICY "Project participants can view projects" ON public.projects FOR SELECT USING (
-    auth.uid() = client_id OR auth.uid() = freelancer_id
-);
-CREATE POLICY "Clients can create projects" ON public.projects FOR INSERT WITH CHECK (auth.uid() = client_id);
-CREATE POLICY "Project participants can update projects" ON public.projects FOR UPDATE USING (
-    auth.uid() = client_id OR auth.uid() = freelancer_id
-);
+-- RLS Policies for support_contacts (admin only)
+CREATE POLICY "Admins can manage support contacts" ON public.support_contacts
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
 
--- Create RLS policies for payments
-CREATE POLICY "Payment participants can view payments" ON public.payments FOR SELECT USING (
-    auth.uid() = client_id OR auth.uid() = freelancer_id
-);
-CREATE POLICY "Clients can create payments" ON public.payments FOR INSERT WITH CHECK (auth.uid() = client_id);
-CREATE POLICY "Payment participants can update payments" ON public.payments FOR UPDATE USING (
-    auth.uid() = client_id OR auth.uid() = freelancer_id
-);
+-- RLS Policies for skills
+CREATE POLICY "Anyone can view skills" ON public.skills
+    FOR SELECT USING (true);
 
--- Create RLS policies for reviews
-CREATE POLICY "Anyone can view reviews" ON public.reviews FOR SELECT USING (true);
-CREATE POLICY "Project participants can create reviews" ON public.reviews FOR INSERT WITH CHECK (
-    auth.uid() = reviewer_id AND
-    EXISTS (SELECT 1 FROM public.projects WHERE id = project_id AND (client_id = auth.uid() OR freelancer_id = auth.uid()))
-);
+CREATE POLICY "Admins can manage skills" ON public.skills
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles 
+            WHERE id = auth.uid() AND role = 'admin'
+        )
+    );
 
--- Create RLS policies for messages
-CREATE POLICY "Users can view own messages" ON public.messages FOR SELECT USING (
-    auth.uid() = sender_id OR auth.uid() = receiver_id
-);
-CREATE POLICY "Users can send messages" ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
-CREATE POLICY "Users can update own messages" ON public.messages FOR UPDATE USING (auth.uid() = sender_id);
+-- RLS Policies for user_skills
+CREATE POLICY "Users can view their own skills" ON public.user_skills
+    FOR SELECT USING (auth.uid() = user_id);
 
--- Create RLS policies for notifications
-CREATE POLICY "Users can view own notifications" ON public.notifications FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "System can create notifications" ON public.notifications FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users can update own notifications" ON public.notifications FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can manage their own skills" ON public.user_skills
+    FOR ALL USING (auth.uid() = user_id);
 
--- Create RLS policies for portfolios
-CREATE POLICY "Anyone can view portfolios" ON public.portfolios FOR SELECT USING (true);
-CREATE POLICY "Users can manage own portfolio" ON public.portfolios FOR ALL USING (auth.uid() = user_id);
+-- RLS Policies for opportunities
+CREATE POLICY "Anyone can view opportunities" ON public.opportunities
+    FOR SELECT USING (true);
 
--- Create RLS policies for token_transactions
-CREATE POLICY "Users can view own token transactions" ON public.token_transactions FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "System can create token transactions" ON public.token_transactions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Users can create opportunities" ON public.opportunities
+    FOR INSERT WITH CHECK (auth.uid() = client_id);
 
--- Create storage policies
-CREATE POLICY "Anyone can view avatars" ON storage.objects FOR SELECT USING (bucket_id = 'avatars');
-CREATE POLICY "Users can upload avatars" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.role() = 'authenticated');
-CREATE POLICY "Users can update own avatars" ON storage.objects FOR UPDATE USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can delete own avatars" ON storage.objects FOR DELETE USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Users can update their own opportunities" ON public.opportunities
+    FOR UPDATE USING (auth.uid() = client_id);
 
-CREATE POLICY "Anyone can view portfolios" ON storage.objects FOR SELECT USING (bucket_id = 'portfolios');
-CREATE POLICY "Users can upload portfolio images" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'portfolios' AND auth.role() = 'authenticated');
-CREATE POLICY "Users can update own portfolio images" ON storage.objects FOR UPDATE USING (bucket_id = 'portfolios' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can delete own portfolio images" ON storage.objects FOR DELETE USING (bucket_id = 'portfolios' AND auth.uid()::text = (storage.foldername(name))[1]);
+CREATE POLICY "Users can delete their own opportunities" ON public.opportunities
+    FOR DELETE USING (auth.uid() = client_id);
 
-CREATE POLICY "Users can view own documents" ON storage.objects FOR SELECT USING (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can upload documents" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'documents' AND auth.role() = 'authenticated');
-CREATE POLICY "Users can update own documents" ON storage.objects FOR UPDATE USING (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
-CREATE POLICY "Users can delete own documents" ON storage.objects FOR DELETE USING (bucket_id = 'documents' AND auth.uid()::text = (storage.foldername(name))[1]);
+-- RLS Policies for proposals
+CREATE POLICY "Users can view proposals for their opportunities" ON public.proposals
+    FOR SELECT USING (
+        auth.uid() IN (
+            SELECT client_id FROM public.opportunities WHERE id = opportunity_id
+        )
+    );
 
--- Create function to handle new user registration
+CREATE POLICY "Users can view their own proposals" ON public.proposals
+    FOR SELECT USING (auth.uid() = freelancer_id);
+
+CREATE POLICY "Users can create proposals" ON public.proposals
+    FOR INSERT WITH CHECK (auth.uid() = freelancer_id);
+
+CREATE POLICY "Users can update their own proposals" ON public.proposals
+    FOR UPDATE USING (auth.uid() = freelancer_id);
+
+-- RLS Policies for projects
+CREATE POLICY "Users can view their projects" ON public.projects
+    FOR SELECT USING (auth.uid() IN (client_id, freelancer_id));
+
+CREATE POLICY "Users can update their projects" ON public.projects
+    FOR UPDATE USING (auth.uid() IN (client_id, freelancer_id));
+
+-- RLS Policies for payments
+CREATE POLICY "Users can view their payments" ON public.payments
+    FOR SELECT USING (auth.uid() IN (client_id, freelancer_id));
+
+-- RLS Policies for reviews
+CREATE POLICY "Users can view reviews" ON public.reviews
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can create reviews for their projects" ON public.reviews
+    FOR INSERT WITH CHECK (
+        auth.uid() IN (
+            SELECT client_id, freelancer_id FROM public.projects WHERE id = project_id
+        )
+    );
+
+-- RLS Policies for messages
+CREATE POLICY "Users can view messages for their projects" ON public.messages
+    FOR SELECT USING (
+        auth.uid() IN (
+            SELECT client_id, freelancer_id FROM public.projects WHERE id = project_id
+        )
+    );
+
+CREATE POLICY "Users can send messages" ON public.messages
+    FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- RLS Policies for notifications
+CREATE POLICY "Users can view their notifications" ON public.notifications
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their notifications" ON public.notifications
+    FOR UPDATE USING (auth.uid() = user_id);
+
+-- RLS Policies for portfolios
+CREATE POLICY "Anyone can view portfolios" ON public.portfolios
+    FOR SELECT USING (true);
+
+CREATE POLICY "Users can manage their own portfolios" ON public.portfolios
+    FOR ALL USING (auth.uid() = user_id);
+
+-- RLS Policies for token_transactions
+CREATE POLICY "Users can view their token transactions" ON public.token_transactions
+    FOR SELECT USING (auth.uid() = user_id);
+
+-- Functions and triggers
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, email, first_name, last_name, role, tokens, created_at, updated_at)
+    INSERT INTO public.profiles (id, email, first_name, last_name, role)
     VALUES (
         NEW.id,
         NEW.email,
         NEW.raw_user_meta_data->>'first_name',
         NEW.raw_user_meta_data->>'last_name',
-        COALESCE(NEW.raw_user_meta_data->>'role', 'freelancer')::public.user_role,
-        5,
-        NOW(),
-        NOW()
+        COALESCE((NEW.raw_user_meta_data->>'role')::user_role, 'freelancer')
     );
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Create trigger for new user registration
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Create function to update user ratings
 CREATE OR REPLACE FUNCTION public.update_user_rating()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Update the reviewee's rating
     UPDATE public.profiles
     SET 
         rating = (
@@ -344,17 +414,14 @@ BEGIN
             WHERE reviewee_id = NEW.reviewee_id
         )
     WHERE id = NEW.reviewee_id;
-    
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
--- Create trigger to update ratings when review is added
 CREATE TRIGGER on_review_created
     AFTER INSERT ON public.reviews
     FOR EACH ROW EXECUTE FUNCTION public.update_user_rating();
 
--- Create function to update proposal count
 CREATE OR REPLACE FUNCTION public.update_proposal_count()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -371,9 +438,8 @@ BEGIN
     END IF;
     RETURN NULL;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
--- Create triggers for proposal count
 CREATE TRIGGER on_proposal_created
     AFTER INSERT ON public.proposals
     FOR EACH ROW EXECUTE FUNCTION public.update_proposal_count();
@@ -382,9 +448,11 @@ CREATE TRIGGER on_proposal_deleted
     AFTER DELETE ON public.proposals
     FOR EACH ROW EXECUTE FUNCTION public.update_proposal_count();
 
--- Create indexes for better performance
+-- Indexes for performance
 CREATE INDEX idx_profiles_role ON public.profiles(role);
 CREATE INDEX idx_profiles_country ON public.profiles(country);
+CREATE INDEX idx_escrow_accounts_country ON public.escrow_accounts(country);
+CREATE INDEX idx_support_contacts_country ON public.support_contacts(country);
 CREATE INDEX idx_opportunities_status ON public.opportunities(status);
 CREATE INDEX idx_opportunities_category ON public.opportunities(category);
 CREATE INDEX idx_opportunities_client_country ON public.opportunities(client_country);
@@ -401,20 +469,23 @@ CREATE INDEX idx_reviews_reviewee_id ON public.reviews(reviewee_id);
 CREATE INDEX idx_portfolios_user_id ON public.portfolios(user_id);
 CREATE INDEX idx_token_transactions_user_id ON public.token_transactions(user_id);
 
--- Insert some sample skills
+-- Insert default data
+INSERT INTO public.escrow_accounts (country, account_name, account_number, account_type, provider, phone_number) VALUES
+('zimbabwe', 'Vusa Ncube', '0788420479', 'mobile_wallet', 'Ecocash, Omari, Innbucks', '0788420479'),
+('zimbabwe', 'Abathwa Incubator PBC', '013113351190001', 'bank_account', 'Innbucks MicroBank', NULL);
+
+INSERT INTO public.support_contacts (country, phone, email, whatsapp) VALUES
+('zimbabwe', '+263 78 998 9619', 'admin@abathwa.com', 'wa.me/789989619');
+
+-- Insert some default skills
 INSERT INTO public.skills (name, category, description) VALUES
-('React', 'Frontend Development', 'Popular JavaScript library for building user interfaces'),
+('React', 'Frontend Development', 'JavaScript library for building user interfaces'),
 ('Node.js', 'Backend Development', 'JavaScript runtime for server-side development'),
-('Python', 'Backend Development', 'Versatile programming language'),
+('TypeScript', 'Frontend Development', 'Typed superset of JavaScript'),
+('Python', 'Backend Development', 'High-level programming language'),
 ('UI/UX Design', 'Design', 'User interface and user experience design'),
-('Mobile Development', 'Mobile', 'iOS and Android app development'),
-('WordPress', 'CMS', 'Content management system development'),
-('SEO', 'Marketing', 'Search engine optimization'),
+('Digital Marketing', 'Marketing', 'Online marketing strategies and techniques'),
 ('Content Writing', 'Writing', 'Creating engaging written content'),
-('Graphic Design', 'Design', 'Visual design and branding'),
 ('Data Analysis', 'Data Science', 'Analyzing and interpreting data'),
-('Digital Marketing', 'Marketing', 'Online marketing strategies'),
-('Video Editing', 'Media', 'Video production and editing'),
-('Translation', 'Language', 'Multi-language translation services'),
-('Photography', 'Media', 'Professional photography services'),
-('Project Management', 'Management', 'Planning and executing projects');
+('Project Management', 'Management', 'Planning and executing projects'),
+('Translation', 'Language', 'Converting text from one language to another');

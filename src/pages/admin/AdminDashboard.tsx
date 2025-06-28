@@ -62,11 +62,21 @@ interface SupportContactFormData {
   whatsapp: string
 }
 
+interface AdminStats {
+  totalUsers: number
+  activeFreelancers: number
+  activeClients: number
+  totalTransactions: number
+  platformFees: number
+  pendingEscrow: number
+}
+
 export default function AdminDashboard() {
   const { user } = useAuthStore()
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>('zimbabwe')
   const [escrowAccounts, setEscrowAccounts] = useState<EscrowAccount[]>([])
   const [supportContacts, setSupportContacts] = useState<SupportContact[]>([])
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
   const [editingEscrow, setEditingEscrow] = useState<string | null>(null)
   const [editingContact, setEditingContact] = useState<string | null>(null)
   const [newEscrow, setNewEscrow] = useState<Partial<EscrowAccount>>({})
@@ -77,15 +87,36 @@ export default function AdminDashboard() {
   const [showAddEscrowForm, setShowAddEscrowForm] = useState(false)
   const [showAddSupportForm, setShowAddSupportForm] = useState(false)
 
-  // Load country data
+  // Load admin data
   useEffect(() => {
-    loadCountryData()
+    loadAdminData()
   }, [selectedCountry])
 
-  const loadCountryData = () => {
-    const config = COUNTRY_CONFIGS[selectedCountry]
-    setEscrowAccounts(config.escrow_accounts)
-    setSupportContacts(config.support_contacts)
+  const loadAdminData = async () => {
+    setIsLoading(true)
+    try {
+      // Load admin stats
+      const statsResponse = await apiService.getAdminStats()
+      if (statsResponse.success && statsResponse.data) {
+        setAdminStats(statsResponse.data)
+      }
+
+      // Load escrow accounts
+      const escrowResponse = await apiService.getEscrowAccounts(selectedCountry)
+      if (escrowResponse.success && escrowResponse.data) {
+        setEscrowAccounts(escrowResponse.data)
+      }
+
+      // Load support contacts
+      const supportResponse = await apiService.getSupportContacts(selectedCountry)
+      if (supportResponse.success && supportResponse.data) {
+        setSupportContacts(supportResponse.data)
+      }
+    } catch (error) {
+      toast.error('Failed to load admin data')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleSaveEscrowAccount = async (data: EscrowAccountFormData) => {
@@ -104,7 +135,7 @@ export default function AdminDashboard() {
         toast.success('Escrow account saved successfully')
         setShowEscrowForm(false)
         // Refresh escrow accounts list
-        loadCountryData()
+        loadAdminData()
       } else {
         toast.error(response.error || 'Failed to save escrow account')
       }
@@ -129,7 +160,7 @@ export default function AdminDashboard() {
         toast.success('Support contact saved successfully')
         setShowSupportForm(false)
         // Refresh support contacts list
-        loadCountryData()
+        loadAdminData()
       } else {
         toast.error(response.error || 'Failed to save support contact')
       }
@@ -156,7 +187,7 @@ export default function AdminDashboard() {
         toast.success('Escrow account added successfully')
         setShowAddEscrowForm(false)
         // Refresh escrow accounts list
-        loadCountryData()
+        loadAdminData()
       } else {
         toast.error(response.error || 'Failed to add escrow account')
       }
@@ -181,7 +212,7 @@ export default function AdminDashboard() {
         toast.success('Support contact added successfully')
         setShowAddSupportForm(false)
         // Refresh support contacts list
-        loadCountryData()
+        loadAdminData()
       } else {
         toast.error(response.error || 'Failed to add support contact')
       }
@@ -192,6 +223,36 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleSubmitEscrowForm = () => {
+    if (!newEscrow.account_name || !newEscrow.account_number || !newEscrow.account_type) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    
+    handleAddEscrowAccount({
+      country: selectedCountry,
+      account_name: newEscrow.account_name,
+      account_number: newEscrow.account_number,
+      account_type: newEscrow.account_type,
+      provider: newEscrow.provider,
+      phone_number: newEscrow.phone_number,
+    })
+  }
+
+  const handleSubmitSupportForm = () => {
+    if (!newContact.phone || !newContact.email || !newContact.whatsapp) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    
+    handleAddSupportContact({
+      country: selectedCountry,
+      phone: newContact.phone,
+      email: newContact.email,
+      whatsapp: newContact.whatsapp,
+    })
+  }
+
   const handleUpdateOpportunityStatus = async (opportunityId: string, status: 'open' | 'in_progress' | 'completed' | 'cancelled') => {
     try {
       const response = await apiService.updateOpportunityStatus(opportunityId, status)
@@ -199,7 +260,7 @@ export default function AdminDashboard() {
       if (response.success) {
         toast.success('Opportunity status updated successfully')
         // Refresh opportunities list
-        loadOpportunities()
+        loadAdminData()
       } else {
         toast.error(response.error || 'Failed to update opportunity status')
       }
@@ -209,64 +270,44 @@ export default function AdminDashboard() {
   }
 
   const toggleEscrowStatus = async (escrowId: string) => {
-    const updatedAccounts = escrowAccounts.map(acc => 
-      acc.id === escrowId ? { ...acc, is_active: !acc.is_active } : acc
-    )
-    setEscrowAccounts(updatedAccounts)
-    
-    // Real API call to update escrow account status
+    const account = escrowAccounts.find(acc => acc.id === escrowId)
+    if (!account) return
+
     try {
-      const account = escrowAccounts.find(acc => acc.id === escrowId)
-      if (account) {
-        const response = await apiService.saveEscrowAccount({
-          country: account.country,
-          account_name: account.account_name,
-          account_number: account.account_number,
-          account_type: account.account_type,
-          provider: account.provider,
-          phone_number: account.phone_number,
-        })
-        
-        if (!response.success) {
-          toast.error('Failed to update escrow account status')
-          // Revert the change
-          setEscrowAccounts(escrowAccounts)
-        }
+      const response = await apiService.updateEscrowAccount(escrowId, {
+        is_active: !account.is_active
+      })
+      
+      if (response.success) {
+        toast.success('Escrow account status updated successfully')
+        // Refresh escrow accounts list
+        loadAdminData()
+      } else {
+        toast.error(response.error || 'Failed to update escrow account status')
       }
     } catch (error) {
       toast.error('Failed to update escrow account status')
-      // Revert the change
-      setEscrowAccounts(escrowAccounts)
     }
   }
 
   const toggleContactStatus = async (contactId: string) => {
-    const updatedContacts = supportContacts.map(cont => 
-      cont.id === contactId ? { ...cont, is_active: !cont.is_active } : cont
-    )
-    setSupportContacts(updatedContacts)
-    
-    // Real API call to update support contact status
+    const contact = supportContacts.find(cont => cont.id === contactId)
+    if (!contact) return
+
     try {
-      const contact = supportContacts.find(cont => cont.id === contactId)
-      if (contact) {
-        const response = await apiService.saveSupportContact({
-          country: contact.country,
-          phone: contact.phone,
-          email: contact.email,
-          whatsapp: contact.whatsapp,
-        })
-        
-        if (!response.success) {
-          toast.error('Failed to update support contact status')
-          // Revert the change
-          setSupportContacts(supportContacts)
-        }
+      const response = await apiService.updateSupportContact(contactId, {
+        is_active: !contact.is_active
+      })
+      
+      if (response.success) {
+        toast.success('Support contact status updated successfully')
+        // Refresh support contacts list
+        loadAdminData()
+      } else {
+        toast.error(response.error || 'Failed to update support contact status')
       }
     } catch (error) {
       toast.error('Failed to update support contact status')
-      // Revert the change
-      setSupportContacts(supportContacts)
     }
   }
 
@@ -388,7 +429,7 @@ export default function AdminDashboard() {
                         <X className="h-4 w-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button onClick={handleAddEscrowAccount}>
+                      <Button onClick={handleSubmitEscrowForm}>
                         <Save className="h-4 w-4 mr-2" />
                         Save
                       </Button>
@@ -511,7 +552,7 @@ export default function AdminDashboard() {
                         <X className="h-4 w-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button onClick={handleAddSupportContact}>
+                      <Button onClick={handleSubmitSupportForm}>
                         <Save className="h-4 w-4 mr-2" />
                         Save
                       </Button>
@@ -585,19 +626,19 @@ export default function AdminDashboard() {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span>Total Users</span>
-                    <span className="font-semibold">1,234</span>
+                    <span className="font-semibold">{adminStats?.totalUsers?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Active Freelancers</span>
-                    <span className="font-semibold">856</span>
+                    <span className="font-semibold">{adminStats?.activeFreelancers?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Active Clients</span>
-                    <span className="font-semibold">378</span>
+                    <span className="font-semibold">{adminStats?.activeClients?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>New This Month</span>
-                    <span className="font-semibold">89</span>
+                    <span className="font-semibold">-</span>
                   </div>
                 </div>
               </CardContent>
@@ -614,19 +655,19 @@ export default function AdminDashboard() {
                 <div className="space-y-4">
                   <div className="flex justify-between">
                     <span>Total Transactions</span>
-                    <span className="font-semibold">$45,678</span>
+                    <span className="font-semibold">${adminStats?.totalTransactions?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Platform Fees</span>
-                    <span className="font-semibold">$4,567</span>
+                    <span className="font-semibold">${adminStats?.platformFees?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Pending Escrow</span>
-                    <span className="font-semibold">$12,345</span>
+                    <span className="font-semibold">${adminStats?.pendingEscrow?.toLocaleString() || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>This Month</span>
-                    <span className="font-semibold">$8,901</span>
+                    <span className="font-semibold">-</span>
                   </div>
                 </div>
               </CardContent>

@@ -29,6 +29,7 @@ export const Login = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [showAdminKey, setShowAdminKey] = useState(false)
   const [adminEmail, setAdminEmail] = useState('')
+  const [adminPassword, setAdminPassword] = useState('')
   
   const navigate = useNavigate()
   const { login } = useAuthStore()
@@ -59,6 +60,7 @@ export const Login = () => {
         console.log('Admin email detected, showing admin key form')
         setShowAdminKey(true)
         setAdminEmail(data.email)
+        setAdminPassword(data.password)
         setIsLoading(false)
         return
       }
@@ -97,8 +99,8 @@ export const Login = () => {
         return
       }
       
-      // Real API call for admin authentication
-      const response = await apiService.login(adminEmail, data.adminKey)
+      // Use the original password for admin authentication
+      const response = await apiService.login(adminEmail, adminPassword)
       
       if (response.success && response.data) {
         // Ensure admin role
@@ -119,6 +121,7 @@ export const Login = () => {
   const handleBackToLogin = () => {
     setShowAdminKey(false)
     setAdminEmail('')
+    setAdminPassword('')
     adminKeyForm.reset()
   }
 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -96,9 +95,9 @@ export const Dashboard = () => {
             id: opp.id,
             title: opp.title,
             status: opp.status,
-            proposals_count: opp.proposals_count,
+            proposals_count: opp.proposals_count || 0,
             budget: `$${opp.budget_min}-$${opp.budget_max}`,
-            posted_at: opp.posted_at
+            posted_at: opp.created_at
           })))
         }
       }
@@ -107,14 +106,27 @@ export const Dashboard = () => {
       if (user.role === 'freelancer') {
         const proposalsResponse = await apiService.getUserProposals(user.id)
         if (proposalsResponse.success && proposalsResponse.data) {
-          setProposals(proposalsResponse.data.slice(0, 5).map(prop => ({
-            id: prop.id,
-            opportunity_title: 'Opportunity Title',
-            status: prop.status,
-            submitted_at: prop.submitted_at,
-            client_name: 'Client Name',
-            budget: `$${prop.budget}`
-          })))
+          // For each proposal, we need to get the opportunity details
+          const proposalsWithDetails = await Promise.all(
+            proposalsResponse.data.slice(0, 5).map(async (prop) => {
+              // Get opportunity details
+              const opportunityResponse = await apiService.getOpportunities({ 
+                id: prop.opportunity_id,
+                limit: 1 
+              })
+              const opportunity = opportunityResponse.success && opportunityResponse.data?.[0]
+              
+              return {
+                id: prop.id,
+                opportunity_title: opportunity?.title || 'Opportunity',
+                status: prop.status,
+                submitted_at: prop.created_at,
+                client_name: opportunity?.client_name || 'Client',
+                budget: `$${prop.proposed_budget}`
+              }
+            })
+          )
+          setProposals(proposalsWithDetails)
         }
       }
 
@@ -127,7 +139,7 @@ export const Dashboard = () => {
           title: notif.title,
           description: notif.message,
           timestamp: new Date(notif.created_at).toLocaleDateString(),
-          read: !!notif.read_at
+          read: !!notif.is_read
         })))
       }
 
@@ -136,14 +148,14 @@ export const Dashboard = () => {
         client: {
           active_opportunities: opportunities.length,
           total_proposals: opportunities.reduce((sum, opp) => sum + opp.proposals_count, 0),
-          total_spent: 0,
+          total_spent: 0, // This would need to be calculated from completed projects
           active_projects: opportunities.filter(opp => opp.status === 'in_progress').length,
         },
         freelancer: {
           active_proposals: proposals.filter(prop => prop.status === 'pending').length,
           won_projects: proposals.filter(prop => prop.status === 'accepted').length,
-          total_earned: 0,
-          client_rating: 4.8,
+          total_earned: 0, // This would need to be calculated from completed projects
+          client_rating: user.rating || 0,
         }
       }
       setStats(calculatedStats)
