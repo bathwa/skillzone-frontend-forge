@@ -320,9 +320,12 @@ class ApiService {
         }
       }
 
-      console.log('Auth user created, profile should be created by trigger for ID:', authData.user.id)
+      console.log('Auth user created, waiting for profile trigger for ID:', authData.user.id)
 
-      // The trigger function creates a basic profile, so we need to update it with additional fields
+      // Wait a moment for the trigger to create the profile, then update it
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Try to update the profile created by trigger
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -334,9 +337,31 @@ class ApiService {
 
       if (updateError) {
         console.error('Profile update error:', updateError)
-        // Continue with signup even if update fails, as basic profile exists
+        
+        // If update fails, try to create the profile manually as fallback
+        console.log('Attempting manual profile creation as fallback')
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: authData.user.id,
+            email: userData.email,
+            first_name: userData.first_name,
+            last_name: userData.last_name,
+            role: userData.role as Database['public']['Enums']['user_role'],
+            country: userData.country,
+            tokens: 5,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }])
+
+        if (createError) {
+          console.error('Manual profile creation also failed:', createError)
+          // Continue with signup even if profile creation fails
+        } else {
+          console.log('Manual profile creation successful')
+        }
       } else {
-        console.log('Profile updated with additional fields')
+        console.log('Profile updated successfully')
       }
 
       const user: User = {
