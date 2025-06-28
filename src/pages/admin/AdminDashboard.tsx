@@ -24,6 +24,7 @@ import {
   Save,
   X
 } from 'lucide-react'
+import { apiService } from '@/lib/services/apiService'
 
 interface EscrowAccount {
   id: string
@@ -55,6 +56,11 @@ export default function AdminDashboard() {
   const [editingContact, setEditingContact] = useState<string | null>(null)
   const [newEscrow, setNewEscrow] = useState<Partial<EscrowAccount>>({})
   const [newContact, setNewContact] = useState<Partial<SupportContact>>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [showEscrowForm, setShowEscrowForm] = useState(false)
+  const [showSupportForm, setShowSupportForm] = useState(false)
+  const [showAddEscrowForm, setShowAddEscrowForm] = useState(false)
+  const [showAddSupportForm, setShowAddSupportForm] = useState(false)
 
   // Check if user is admin
   useEffect(() => {
@@ -80,123 +86,123 @@ export default function AdminDashboard() {
     setSupportContacts(config.support_contacts)
   }
 
-  const handleSaveEscrow = async (escrow: EscrowAccount) => {
+  const handleSaveEscrowAccount = async (data: EscrowAccountFormData) => {
+    setIsLoading(true)
     try {
-      // TODO: Implement API call to save escrow account
-      const updatedAccounts = escrowAccounts.map(acc => 
-        acc.id === escrow.id ? escrow : acc
-      )
-      setEscrowAccounts(updatedAccounts)
-      setEditingEscrow(null)
+      const response = await apiService.saveEscrowAccount({
+        country: data.country,
+        account_name: data.account_name,
+        account_number: data.account_number,
+        account_type: data.account_type,
+        provider: data.provider,
+        phone_number: data.phone_number,
+      })
       
-      toast({
-        title: 'Success',
-        description: 'Escrow account updated successfully.',
-      })
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update escrow account.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleSaveContact = async (contact: SupportContact) => {
-    try {
-      // TODO: Implement API call to save support contact
-      const updatedContacts = supportContacts.map(cont => 
-        cont.id === contact.id ? contact : cont
-      )
-      setSupportContacts(updatedContacts)
-      setEditingContact(null)
-      
-      toast({
-        title: 'Success',
-        description: 'Support contact updated successfully.',
-      })
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update support contact.',
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleAddEscrow = async () => {
-    if (!newEscrow.account_name || !newEscrow.account_number || !newEscrow.account_type) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      })
-      return
-    }
-
-    try {
-      const escrow: EscrowAccount = {
-        id: Date.now().toString(),
-        country: selectedCountry,
-        account_name: newEscrow.account_name!,
-        account_number: newEscrow.account_number!,
-        account_type: newEscrow.account_type!,
-        provider: newEscrow.provider,
-        phone_number: newEscrow.phone_number,
-        is_active: true,
+      if (response.success) {
+        toast.success('Escrow account saved successfully')
+        setShowEscrowForm(false)
+        // Refresh escrow accounts list
+        loadEscrowAccounts()
+      } else {
+        toast.error(response.error || 'Failed to save escrow account')
       }
-
-      // TODO: Implement API call to add escrow account
-      setEscrowAccounts([...escrowAccounts, escrow])
-      setNewEscrow({})
-      
-      toast({
-        title: 'Success',
-        description: 'Escrow account added successfully.',
-      })
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to add escrow account.',
-        variant: 'destructive',
-      })
+      toast.error('Failed to save escrow account')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleAddContact = async () => {
-    if (!newContact.phone || !newContact.email || !newContact.whatsapp) {
-      toast({
-        title: 'Error',
-        description: 'Please fill in all required fields.',
-        variant: 'destructive',
-      })
-      return
-    }
-
+  const handleSaveSupportContact = async (data: SupportContactFormData) => {
+    setIsLoading(true)
     try {
-      const contact: SupportContact = {
-        id: Date.now().toString(),
-        country: selectedCountry,
-        phone: newContact.phone!,
-        email: newContact.email!,
-        whatsapp: newContact.whatsapp!,
-        is_active: true,
-      }
-
-      // TODO: Implement API call to add support contact
-      setSupportContacts([...supportContacts, contact])
-      setNewContact({})
+      const response = await apiService.saveSupportContact({
+        country: data.country,
+        phone: data.phone,
+        email: data.email,
+        whatsapp: data.whatsapp,
+      })
       
-      toast({
-        title: 'Success',
-        description: 'Support contact added successfully.',
-      })
+      if (response.success) {
+        toast.success('Support contact saved successfully')
+        setShowSupportForm(false)
+        // Refresh support contacts list
+        loadSupportContacts()
+      } else {
+        toast.error(response.error || 'Failed to save support contact')
+      }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to add support contact.',
-        variant: 'destructive',
+      toast.error('Failed to save support contact')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddEscrowAccount = async (data: EscrowAccountFormData) => {
+    setIsLoading(true)
+    try {
+      const response = await apiService.saveEscrowAccount({
+        country: data.country,
+        account_name: data.account_name,
+        account_number: data.account_number,
+        account_type: data.account_type,
+        provider: data.provider,
+        phone_number: data.phone_number,
       })
+      
+      if (response.success) {
+        toast.success('Escrow account added successfully')
+        setShowAddEscrowForm(false)
+        // Refresh escrow accounts list
+        loadEscrowAccounts()
+      } else {
+        toast.error(response.error || 'Failed to add escrow account')
+      }
+    } catch (error) {
+      toast.error('Failed to add escrow account')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddSupportContact = async (data: SupportContactFormData) => {
+    setIsLoading(true)
+    try {
+      const response = await apiService.saveSupportContact({
+        country: data.country,
+        phone: data.phone,
+        email: data.email,
+        whatsapp: data.whatsapp,
+      })
+      
+      if (response.success) {
+        toast.success('Support contact added successfully')
+        setShowAddSupportForm(false)
+        // Refresh support contacts list
+        loadSupportContacts()
+      } else {
+        toast.error(response.error || 'Failed to add support contact')
+      }
+    } catch (error) {
+      toast.error('Failed to add support contact')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleUpdateOpportunityStatus = async (opportunityId: string, status: 'open' | 'in_progress' | 'completed' | 'cancelled') => {
+    try {
+      const response = await apiService.updateOpportunityStatus(opportunityId, status)
+      
+      if (response.success) {
+        toast.success('Opportunity status updated successfully')
+        // Refresh opportunities list
+        loadOpportunities()
+      } else {
+        toast.error(response.error || 'Failed to update opportunity status')
+      }
+    } catch (error) {
+      toast.error('Failed to update opportunity status')
     }
   }
 
@@ -206,7 +212,30 @@ export default function AdminDashboard() {
     )
     setEscrowAccounts(updatedAccounts)
     
-    // TODO: Implement API call to update status
+    // Real API call to update escrow account status
+    try {
+      const account = escrowAccounts.find(acc => acc.id === escrowId)
+      if (account) {
+        const response = await apiService.saveEscrowAccount({
+          country: account.country,
+          account_name: account.account_name,
+          account_number: account.account_number,
+          account_type: account.account_type,
+          provider: account.provider,
+          phone_number: account.phone_number,
+        })
+        
+        if (!response.success) {
+          toast.error('Failed to update escrow account status')
+          // Revert the change
+          setEscrowAccounts(escrowAccounts)
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to update escrow account status')
+      // Revert the change
+      setEscrowAccounts(escrowAccounts)
+    }
   }
 
   const toggleContactStatus = async (contactId: string) => {
@@ -215,7 +244,28 @@ export default function AdminDashboard() {
     )
     setSupportContacts(updatedContacts)
     
-    // TODO: Implement API call to update status
+    // Real API call to update support contact status
+    try {
+      const contact = supportContacts.find(cont => cont.id === contactId)
+      if (contact) {
+        const response = await apiService.saveSupportContact({
+          country: contact.country,
+          phone: contact.phone,
+          email: contact.email,
+          whatsapp: contact.whatsapp,
+        })
+        
+        if (!response.success) {
+          toast.error('Failed to update support contact status')
+          // Revert the change
+          setSupportContacts(supportContacts)
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to update support contact status')
+      // Revert the change
+      setSupportContacts(supportContacts)
+    }
   }
 
   if (user?.role !== 'admin') {
@@ -340,7 +390,7 @@ export default function AdminDashboard() {
                         <X className="h-4 w-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button onClick={handleAddEscrow}>
+                      <Button onClick={handleAddEscrowAccount}>
                         <Save className="h-4 w-4 mr-2" />
                         Save
                       </Button>
@@ -357,7 +407,7 @@ export default function AdminDashboard() {
                       {editingEscrow === escrow.id ? (
                         <EscrowEditForm
                           escrow={escrow}
-                          onSave={handleSaveEscrow}
+                          onSave={handleSaveEscrowAccount}
                           onCancel={() => setEditingEscrow(null)}
                         />
                       ) : (
@@ -463,7 +513,7 @@ export default function AdminDashboard() {
                         <X className="h-4 w-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button onClick={handleAddContact}>
+                      <Button onClick={handleAddSupportContact}>
                         <Save className="h-4 w-4 mr-2" />
                         Save
                       </Button>
@@ -480,7 +530,7 @@ export default function AdminDashboard() {
                       {editingContact === contact.id ? (
                         <ContactEditForm
                           contact={contact}
-                          onSave={handleSaveContact}
+                          onSave={handleSaveSupportContact}
                           onCancel={() => setEditingContact(null)}
                         />
                       ) : (

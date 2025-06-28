@@ -12,7 +12,7 @@ import { ArrowLeft, Loader2, Shield } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
-import { apiService } from '@/services/apiService'
+import { apiService } from '@/lib/services/apiService'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),

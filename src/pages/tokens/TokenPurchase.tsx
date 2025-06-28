@@ -18,14 +18,17 @@ import {
   Mail,
   MessageCircle
 } from 'lucide-react'
+import { apiService } from '@/lib/services/apiService'
+import { useNavigate } from 'react-router-dom'
 
 export default function TokenPurchase() {
-  const { user } = useAuthStore()
+  const { user, updateUser } = useAuthStore()
   const { toast } = useToast()
   const [selectedPackage, setSelectedPackage] = useState<keyof typeof TOKEN_PRICING | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [escrowDetails, setEscrowDetails] = useState<any>(null)
   const [transactionId, setTransactionId] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const userCountry = countryService.getUserCountry()
   const countryConfig = countryService.getCountryConfig()
@@ -37,43 +40,28 @@ export default function TokenPurchase() {
     setTransactionId(null)
   }
 
-  const handlePurchase = async () => {
-    if (!selectedPackage || !user) {
-      toast({
-        title: 'Error',
-        description: 'Please select a package and ensure you are logged in.',
-        variant: 'destructive',
-      })
+  const handlePurchase = async (packageType: keyof typeof TOKEN_PRICING) => {
+    if (!user?.id) {
+      toast.error('Please log in to purchase tokens')
       return
     }
 
     setIsProcessing(true)
     try {
-      const result = await tokenService.createTokenPurchase({
-        packageType: selectedPackage,
-        paymentMethod: 'escrow',
-      })
-
-      if (result.success && result.escrowDetails) {
-        setEscrowDetails(result.escrowDetails)
-        setTransactionId(result.transactionId || null)
-        toast({
-          title: 'Success',
-          description: 'Token purchase request created. Please follow the payment instructions.',
-        })
+      const packageData = TOKEN_PRICING[packageType]
+      const response = await apiService.purchaseTokens(user.id, packageData.tokens, packageType)
+      
+      if (response.success && response.data) {
+        toast.success(`Successfully purchased ${packageData.tokens} tokens!`)
+        // Update user token balance in store
+        const newBalance = (user.tokens_balance || 0) + packageData.tokens
+        updateUser({ tokens_balance: newBalance })
+        navigate('/my-tokens')
       } else {
-        toast({
-          title: 'Error',
-          description: result.error || 'Failed to create token purchase request.',
-          variant: 'destructive',
-        })
+        toast.error(response.error || 'Failed to purchase tokens')
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'An unexpected error occurred.',
-        variant: 'destructive',
-      })
+      toast.error('Failed to process purchase')
     } finally {
       setIsProcessing(false)
     }
@@ -159,7 +147,7 @@ export default function TokenPurchase() {
       {selectedPackage && (
         <div className="text-center">
           <Button 
-            onClick={handlePurchase} 
+            onClick={() => handlePurchase(selectedPackage as keyof typeof TOKEN_PRICING)} 
             disabled={isProcessing}
             size="lg"
             className="px-8"

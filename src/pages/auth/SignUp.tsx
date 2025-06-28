@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
-import { apiService } from '@/services/apiService'
+import { apiService } from '@/lib/services/apiService'
 
 const signUpSchema = z.object({
   email: z.string().email('Please enter a valid email address'),

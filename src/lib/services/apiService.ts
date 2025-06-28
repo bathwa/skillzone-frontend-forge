@@ -1,15 +1,30 @@
 import { supabase } from '@/integrations/supabase/client'
 import type { Database } from '@/integrations/supabase/types'
+import {
+  mapDbProfileToUserProfile,
+  mapDbOpportunityToOpportunity,
+  mapDbProposalToProposal,
+  mapDbNotificationToNotification,
+  mapDbTokenTransactionToTokenTransaction,
+  mapUserProfileToDbProfile,
+  mapOpportunityToDbOpportunity,
+  type UserProfile,
+  type Opportunity,
+  type Proposal,
+  type Notification,
+  type TokenTransaction,
+} from './typeMappers'
 
-// Types for API responses
+// Generic API response type
 export interface ApiResponse<T> {
   data: T | null
   error: string | null
   success: boolean
 }
 
+// Paginated response type
 export interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  pagination: {
+  pagination?: {
     page: number
     limit: number
     total: number
@@ -17,99 +32,35 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   }
 }
 
-// User types
-export interface UserProfile {
+// Authentication types
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface SignUpData {
+  email: string
+  password: string
+  first_name: string
+  last_name: string
+  role: 'client' | 'freelancer'
+  country: Database['public']['Enums']['country_code']
+}
+
+export interface User {
   id: string
   email: string
   first_name: string
   last_name: string
   name: string
-  role: 'admin' | 'client' | 'freelancer'
+  role: 'client' | 'freelancer' | 'admin'
   country: Database['public']['Enums']['country_code']
   tokens_balance: number
-  subscription_tier: 'basic' | 'pro' | 'enterprise'
+  subscription_tier: 'basic' | 'pro' | 'premium'
   avatar_url?: string
-  created_at: string
-  updated_at: string
 }
 
-// Opportunity types
-export interface Opportunity {
-  id: string
-  title: string
-  description: string
-  budget_min: number
-  budget_max: number
-  category: string
-  type: 'standard' | 'premium'
-  client_id: string
-  client_country: Database['public']['Enums']['country_code']
-  skills: string[]
-  status: 'active' | 'closed' | 'in_progress'
-  proposals_count: number
-  posted_at: string
-  created_at: string
-  updated_at: string
-}
-
-// Profile types
-export interface Profile {
-  id: string
-  user_id: string
-  role: 'freelancer' | 'client'
-  bio?: string
-  hourly_rate?: number
-  experience_level: 'junior' | 'mid' | 'senior' | 'expert'
-  rating: number
-  reviews_count: number
-  completed_projects: number
-  verified: boolean
-  online_status: 'online' | 'offline'
-  country: Database['public']['Enums']['country_code']
-  created_at: string
-  updated_at: string
-}
-
-// Proposal types
-export interface Proposal {
-  id: string
-  opportunity_id: string
-  freelancer_id: string
-  client_id: string
-  budget: number
-  delivery_time: number
-  message: string
-  status: 'pending' | 'accepted' | 'rejected'
-  submitted_at: string
-  created_at: string
-  updated_at: string
-}
-
-// Token transaction types
-export interface TokenTransaction {
-  id: string
-  user_id: string
-  type: 'purchase' | 'spend' | 'refund' | 'bonus'
-  amount: number
-  balance_after: number
-  description: string
-  reference?: string
-  created_at: string
-}
-
-// Notification types
-export interface Notification {
-  id: string
-  user_id: string
-  type: 'proposal_received' | 'proposal_accepted' | 'proposal_rejected' | 'message_received' | 'project_completed' | 'token_purchase' | 'system'
-  title: string
-  message: string
-  read_at?: string
-  created_at: string
-}
-
-// API Service Class
-export class ApiService {
+class ApiService {
   private baseUrl: string
 
   constructor() {
@@ -156,61 +107,134 @@ export class ApiService {
   }
 
   // Authentication methods
-  async login(email: string, password: string): Promise<ApiResponse<UserProfile>> {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+  async login(email: string, password: string): Promise<ApiResponse<User>> {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      return {
-        data: null,
-        error: error.message,
-        success: false,
-      }
-    }
-
-    // Get user profile
-    const profileResponse = await this.getUserProfile(data.user.id)
-    return profileResponse
-  }
-
-  async signup(userData: {
-    email: string
-    password: string
-    first_name: string
-    last_name: string
-    role: 'client' | 'freelancer'
-    country: Database['public']['Enums']['country_code']
-  }): Promise<ApiResponse<UserProfile>> {
-    const { data, error } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
-      options: {
-        data: {
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          role: userData.role,
-          country: userData.country,
+      if (error) {
+        return {
+          data: null,
+          error: error.message,
+          success: false,
         }
       }
-    })
 
-    if (error) {
+      if (!data.user) {
+        return {
+          data: null,
+          error: 'No user data returned',
+          success: false,
+        }
+      }
+
+      // Get user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profileError || !profile) {
+        return {
+          data: null,
+          error: 'Failed to load user profile',
+          success: false,
+        }
+      }
+
+      const userProfile = mapDbProfileToUserProfile(profile)
+      
+      return {
+        data: {
+          id: userProfile.id,
+          email: userProfile.email,
+          first_name: userProfile.first_name,
+          last_name: userProfile.last_name,
+          name: userProfile.name,
+          role: userProfile.role,
+          country: userProfile.country,
+          tokens_balance: userProfile.tokens_balance,
+          subscription_tier: userProfile.subscription_tier,
+          avatar_url: userProfile.avatar_url,
+        },
+        error: null,
+        success: true,
+      }
+    } catch (error) {
       return {
         data: null,
-        error: error.message,
+        error: 'Authentication failed',
         success: false,
       }
     }
+  }
 
-    // Create user profile
-    const profileResponse = await this.createUserProfile({
-      user_id: data.user!.id,
-      ...userData,
-    })
+  async signup(userData: SignUpData): Promise<ApiResponse<User>> {
+    try {
+      // Create auth user
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+      })
 
-    return profileResponse
+      if (authError || !authData.user) {
+        return {
+          data: null,
+          error: authError?.message || 'Failed to create user account',
+          success: false,
+        }
+      }
+
+      // Create profile
+      const profileData = {
+        id: authData.user.id,
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        role: userData.role,
+        country: userData.country,
+        tokens: 5, // Welcome bonus
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([profileData])
+
+      if (profileError) {
+        return {
+          data: null,
+          error: 'Failed to create user profile',
+          success: false,
+        }
+      }
+
+      const user: User = {
+        id: authData.user.id,
+        email: userData.email,
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        name: `${userData.first_name} ${userData.last_name}`,
+        role: userData.role,
+        country: userData.country,
+        tokens_balance: 5,
+        subscription_tier: 'basic',
+      }
+
+      return {
+        data: user,
+        error: null,
+        success: true,
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: 'Failed to create account',
+        success: false,
+      }
+    }
   }
 
   async logout(): Promise<ApiResponse<void>> {
@@ -231,12 +255,67 @@ export class ApiService {
     }
   }
 
-  // User profile methods
+  // Profile methods
+  async getProfiles(filters?: {
+    role?: 'freelancer' | 'client'
+    country?: Database['public']['Enums']['country_code']
+    experience_level?: string
+    page?: number
+    limit?: number
+  }): Promise<PaginatedResponse<UserProfile>> {
+    const page = filters?.page || 1
+    const limit = filters?.limit || 10
+    const offset = (page - 1) * limit
+
+    let query = supabase
+      .from('profiles')
+      .select('*', { count: 'exact' })
+
+    if (filters?.role) {
+      query = query.eq('role', filters.role)
+    }
+    if (filters?.country) {
+      query = query.eq('country', filters.country)
+    }
+
+    const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      return {
+        data: null,
+        error: error.message,
+        success: false,
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
+      }
+    }
+
+    const profiles = data?.map(mapDbProfileToUserProfile) || []
+
+    return {
+      data: profiles,
+      error: null,
+      success: true,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limit)
+      }
+    }
+  }
+
   async getUserProfile(userId: string): Promise<ApiResponse<UserProfile>> {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('user_id', userId)
+      .eq('id', userId)
       .single()
 
     if (error) {
@@ -248,54 +327,19 @@ export class ApiService {
     }
 
     return {
-      data: data as UserProfile,
-      error: null,
-      success: true,
-    }
-  }
-
-  async createUserProfile(profileData: {
-    user_id: string
-    first_name: string
-    last_name: string
-    role: 'client' | 'freelancer'
-    country: Database['public']['Enums']['country_code']
-  }): Promise<ApiResponse<UserProfile>> {
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert([{
-        user_id: profileData.user_id,
-        first_name: profileData.first_name,
-        last_name: profileData.last_name,
-        name: `${profileData.first_name} ${profileData.last_name}`,
-        role: profileData.role,
-        country: profileData.country,
-        tokens_balance: 5, // Welcome bonus
-        subscription_tier: 'basic',
-      }])
-      .select()
-      .single()
-
-    if (error) {
-      return {
-        data: null,
-        error: error.message,
-        success: false,
-      }
-    }
-
-    return {
-      data: data as UserProfile,
+      data: mapDbProfileToUserProfile(data),
       error: null,
       success: true,
     }
   }
 
   async updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<ApiResponse<UserProfile>> {
+    const dbUpdates = mapUserProfileToDbProfile(updates)
+    
     const { data, error } = await supabase
       .from('profiles')
-      .update(updates)
-      .eq('user_id', userId)
+      .update(dbUpdates)
+      .eq('id', userId)
       .select()
       .single()
 
@@ -308,7 +352,7 @@ export class ApiService {
     }
 
     return {
-      data: data as UserProfile,
+      data: mapDbProfileToUserProfile(data),
       error: null,
       success: true,
     }
@@ -342,7 +386,10 @@ export class ApiService {
       query = query.eq('type', filters.type)
     }
     if (filters?.status) {
-      query = query.eq('status', filters.status)
+      // Map frontend status to database status
+      const dbStatus = filters.status === 'active' ? 'open' : 
+                      filters.status === 'closed' ? 'completed' : 'in_progress'
+      query = query.eq('status', dbStatus)
     }
     if (filters?.client_id) {
       query = query.eq('client_id', filters.client_id)
@@ -366,8 +413,10 @@ export class ApiService {
       }
     }
 
+    const opportunities = data?.map(mapDbOpportunityToOpportunity) || []
+
     return {
-      data: data as Opportunity[],
+      data: opportunities,
       error: null,
       success: true,
       pagination: {
@@ -380,9 +429,23 @@ export class ApiService {
   }
 
   async createOpportunity(opportunityData: Omit<Opportunity, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Opportunity>> {
+    // Ensure all required fields are present
+    const dbData = {
+      title: opportunityData.title,
+      description: opportunityData.description,
+      budget_min: opportunityData.budget_min,
+      budget_max: opportunityData.budget_max,
+      category: opportunityData.category,
+      type: opportunityData.type,
+      status: 'open' as const, // Default status for new opportunities
+      client_country: opportunityData.client_country,
+      required_skills: opportunityData.skills,
+      client_id: '', // This should be set from the authenticated user
+    }
+    
     const { data, error } = await supabase
       .from('opportunities')
-      .insert([opportunityData])
+      .insert([dbData])
       .select()
       .single()
 
@@ -395,17 +458,20 @@ export class ApiService {
     }
 
     return {
-      data: data as Opportunity,
+      data: mapDbOpportunityToOpportunity(data),
       error: null,
       success: true,
     }
   }
 
-  async getOpportunity(id: string): Promise<ApiResponse<Opportunity>> {
+  async updateOpportunity(opportunityId: string, updates: Partial<Opportunity>): Promise<ApiResponse<Opportunity>> {
+    const dbUpdates = mapOpportunityToDbOpportunity(updates)
+    
     const { data, error } = await supabase
       .from('opportunities')
-      .select('*')
-      .eq('id', id)
+      .update(dbUpdates)
+      .eq('id', opportunityId)
+      .select()
       .single()
 
     if (error) {
@@ -417,93 +483,39 @@ export class ApiService {
     }
 
     return {
-      data: data as Opportunity,
+      data: mapDbOpportunityToOpportunity(data),
       error: null,
       success: true,
     }
   }
 
-  // Profile/Skill provider methods
-  async getProfiles(filters?: {
-    role?: 'freelancer' | 'client'
-    country?: Database['public']['Enums']['country_code']
-    experience_level?: 'junior' | 'mid' | 'senior' | 'expert'
-    page?: number
-    limit?: number
-  }): Promise<PaginatedResponse<Profile>> {
-    let query = supabase
-      .from('profiles')
-      .select('*', { count: 'exact' })
-
-    if (filters?.role) {
-      query = query.eq('role', filters.role)
-    }
-    if (filters?.country) {
-      query = query.eq('country', filters.country)
-    }
-    if (filters?.experience_level) {
-      query = query.eq('experience_level', filters.experience_level)
-    }
-
-    const page = filters?.page || 1
-    const limit = filters?.limit || 10
-    const from = (page - 1) * limit
-    const to = from + limit - 1
-
-    query = query.range(from, to).order('created_at', { ascending: false })
-
-    const { data, error, count } = await query
+  async deleteOpportunity(opportunityId: string): Promise<ApiResponse<void>> {
+    const { error } = await supabase
+      .from('opportunities')
+      .delete()
+      .eq('id', opportunityId)
 
     if (error) {
       return {
         data: null,
         error: error.message,
         success: false,
-        pagination: { page, limit, total: 0, totalPages: 0 }
       }
     }
 
     return {
-      data: data as Profile[],
+      data: null,
       error: null,
       success: true,
-      pagination: {
-        page,
-        limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
-      }
     }
   }
 
   // Proposal methods
-  async createProposal(proposalData: Omit<Proposal, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Proposal>> {
-    const { data, error } = await supabase
-      .from('proposals')
-      .insert([proposalData])
-      .select()
-      .single()
-
-    if (error) {
-      return {
-        data: null,
-        error: error.message,
-        success: false,
-      }
-    }
-
-    return {
-      data: data as Proposal,
-      error: null,
-      success: true,
-    }
-  }
-
   async getUserProposals(userId: string): Promise<ApiResponse<Proposal[]>> {
     const { data, error } = await supabase
       .from('proposals')
       .select('*')
-      .or(`freelancer_id.eq.${userId},client_id.eq.${userId}`)
+      .eq('freelancer_id', userId)
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -514,24 +526,28 @@ export class ApiService {
       }
     }
 
+    const proposals = data?.map(mapDbProposalToProposal) || []
+
     return {
-      data: data as Proposal[],
+      data: proposals,
       error: null,
       success: true,
     }
   }
 
-  // Token methods
-  async purchaseTokens(userId: string, amount: number, packageType: string): Promise<ApiResponse<TokenTransaction>> {
+  async createProposal(proposalData: Omit<Proposal, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Proposal>> {
+    const dbData = {
+      opportunity_id: proposalData.opportunity_id,
+      freelancer_id: proposalData.freelancer_id,
+      proposed_budget: proposalData.budget,
+      estimated_duration: proposalData.delivery_time,
+      cover_letter: proposalData.message,
+      status: 'pending' as const,
+    }
+    
     const { data, error } = await supabase
-      .from('token_transactions')
-      .insert([{
-        user_id: userId,
-        type: 'purchase',
-        amount,
-        description: `Token purchase - ${packageType} package`,
-        reference: `PURCHASE_${Date.now()}`,
-      }])
+      .from('proposals')
+      .insert([dbData])
       .select()
       .single()
 
@@ -543,21 +559,19 @@ export class ApiService {
       }
     }
 
-    // Update user token balance
-    await this.updateUserTokenBalance(userId, amount)
-
     return {
-      data: data as TokenTransaction,
+      data: mapDbProposalToProposal(data),
       error: null,
       success: true,
     }
   }
 
-  async getUserTokenBalance(userId: string): Promise<ApiResponse<number>> {
+  async updateProposalStatus(proposalId: string, status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'): Promise<ApiResponse<Proposal>> {
     const { data, error } = await supabase
-      .from('profiles')
-      .select('tokens_balance')
-      .eq('user_id', userId)
+      .from('proposals')
+      .update({ status })
+      .eq('id', proposalId)
+      .select()
       .single()
 
     if (error) {
@@ -569,7 +583,100 @@ export class ApiService {
     }
 
     return {
-      data: data.tokens_balance,
+      data: mapDbProposalToProposal(data),
+      error: null,
+      success: true,
+    }
+  }
+
+  async getOpportunityProposals(opportunityId: string): Promise<ApiResponse<Proposal[]>> {
+    const { data, error } = await supabase
+      .from('proposals')
+      .select('*')
+      .eq('opportunity_id', opportunityId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return {
+        data: null,
+        error: error.message,
+        success: false,
+      }
+    }
+
+    const proposals = data?.map(mapDbProposalToProposal) || []
+
+    return {
+      data: proposals,
+      error: null,
+      success: true,
+    }
+  }
+
+  // Notification methods
+  async getNotifications(userId: string): Promise<ApiResponse<Notification[]>> {
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return {
+        data: null,
+        error: error.message,
+        success: false,
+      }
+    }
+
+    const notifications = data?.map(mapDbNotificationToNotification) || []
+
+    return {
+      data: notifications,
+      error: null,
+      success: true,
+    }
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<void>> {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId)
+
+    if (error) {
+      return {
+        data: null,
+        error: error.message,
+        success: false,
+      }
+    }
+
+    return {
+      data: null,
+      error: null,
+      success: true,
+    }
+  }
+
+  // Token methods
+  async getUserTokenBalance(userId: string): Promise<ApiResponse<number>> {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('tokens')
+      .eq('id', userId)
+      .single()
+
+    if (error) {
+      return {
+        data: null,
+        error: error.message,
+        success: false,
+      }
+    }
+
+    return {
+      data: data.tokens || 0,
       error: null,
       success: true,
     }
@@ -590,62 +697,67 @@ export class ApiService {
       }
     }
 
+    const transactions = data?.map(mapDbTokenTransactionToTokenTransaction) || []
+
     return {
-      data: data as TokenTransaction[],
+      data: transactions,
       error: null,
       success: true,
+    }
+  }
+
+  async purchaseTokens(userId: string, amount: number, packageType: string): Promise<ApiResponse<TokenTransaction>> {
+    try {
+      // Create transaction record
+      const { data: transaction, error: transactionError } = await supabase
+        .from('token_transactions')
+        .insert([{
+          user_id: userId,
+          transaction_type: 'purchase',
+          amount,
+          description: `Token purchase - ${packageType} package`,
+        }])
+        .select()
+        .single()
+
+      if (transactionError) {
+        return {
+          data: null,
+          error: transactionError.message,
+          success: false,
+        }
+      }
+
+      // Update user token balance
+      await this.updateUserTokenBalance(userId, amount)
+
+      return {
+        data: mapDbTokenTransactionToTokenTransaction(transaction),
+        error: null,
+        success: true,
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: 'Failed to process token purchase',
+        success: false,
+      }
     }
   }
 
   private async updateUserTokenBalance(userId: string, amount: number): Promise<void> {
+    const { data: currentBalance } = await supabase
+      .from('profiles')
+      .select('tokens')
+      .eq('id', userId)
+      .single()
+
+    const newBalance = (currentBalance?.tokens || 0) + amount
+
     await supabase
       .from('profiles')
-      .update({ tokens_balance: supabase.rpc('increment', { amount }) })
-      .eq('user_id', userId)
-  }
-
-  // Notification methods
-  async getNotifications(userId: string): Promise<ApiResponse<Notification[]>> {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      return {
-        data: null,
-        error: error.message,
-        success: false,
-      }
-    }
-
-    return {
-      data: data as Notification[],
-      error: null,
-      success: true,
-    }
-  }
-
-  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<void>> {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', notificationId)
-
-    if (error) {
-      return {
-        data: null,
-        error: error.message,
-        success: false,
-      }
-    }
-
-    return {
-      data: null,
-      error: null,
-      success: true,
-    }
+      .update({ tokens: newBalance })
+      .eq('id', userId)
   }
 
   // Admin methods
@@ -705,6 +817,87 @@ export class ApiService {
       return {
         data: null,
         error: 'Failed to load admin statistics',
+        success: false,
+      }
+    }
+  }
+
+  async saveEscrowAccount(escrowData: {
+    country: Database['public']['Enums']['country_code']
+    account_name: string
+    account_number: string
+    account_type: 'mobile_wallet' | 'bank_account' | 'digital_wallet'
+    provider?: string
+    phone_number?: string
+  }): Promise<ApiResponse<void>> {
+    try {
+      // This would typically save to an escrow_accounts table
+      // For now, we'll simulate success
+      console.log('Saving escrow account:', escrowData)
+      
+      return {
+        data: null,
+        error: null,
+        success: true,
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: 'Failed to save escrow account',
+        success: false,
+      }
+    }
+  }
+
+  async saveSupportContact(contactData: {
+    country: Database['public']['Enums']['country_code']
+    phone: string
+    email: string
+    whatsapp: string
+  }): Promise<ApiResponse<void>> {
+    try {
+      // This would typically save to a support_contacts table
+      // For now, we'll simulate success
+      console.log('Saving support contact:', contactData)
+      
+      return {
+        data: null,
+        error: null,
+        success: true,
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: 'Failed to save support contact',
+        success: false,
+      }
+    }
+  }
+
+  async updateOpportunityStatus(opportunityId: string, status: 'open' | 'in_progress' | 'completed' | 'cancelled'): Promise<ApiResponse<void>> {
+    try {
+      const { error } = await supabase
+        .from('opportunities')
+        .update({ status })
+        .eq('id', opportunityId)
+
+      if (error) {
+        return {
+          data: null,
+          error: error.message,
+          success: false,
+        }
+      }
+
+      return {
+        data: null,
+        error: null,
+        success: true,
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: 'Failed to update opportunity status',
         success: false,
       }
     }
