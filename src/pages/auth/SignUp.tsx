@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -125,7 +124,8 @@ export const SignUp = () => {
         name: data.name,
         role: data.role,
         country: data.country as any,
-        tokens_balance: 5, // Welcome bonus
+        tokens: 5, // Welcome bonus - use 'tokens' instead of 'tokens_balance' to match DB schema
+        tokens_balance: 5, // Also include tokens_balance for frontend compatibility
         subscription_tier: 'basic' as const,
       }
       

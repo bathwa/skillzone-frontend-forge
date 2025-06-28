@@ -1,4 +1,3 @@
-
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/integrations/supabase/client'
@@ -7,7 +6,7 @@ import type { Database } from '@/integrations/supabase/types'
 type Profile = Database['public']['Tables']['profiles']['Row']
 
 // Extended user type that matches our frontend expectations
-interface User extends Omit<Profile, 'first_name' | 'last_name'> {
+interface User extends Profile {
   name: string // Computed from first_name + last_name
   tokens_balance: number // Maps to tokens field
   subscription_tier: 'basic' | 'pro' | 'premium' // Default subscription handling
@@ -49,20 +48,20 @@ export const useAuthStore = create<AuthState>()(
           name: userData.name || `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Anonymous User',
           role: userData.role || 'freelancer',
           country: userData.country || null,
-          tokens: userData.tokens_balance || userData.tokens || 5,
-          tokens_balance: userData.tokens_balance || userData.tokens || 5,
+          tokens: typeof userData.tokens === 'number' ? userData.tokens : (userData.tokens_balance || 5),
+          tokens_balance: typeof userData.tokens === 'number' ? userData.tokens : (userData.tokens_balance || 5),
           subscription_tier: userData.subscription_tier || 'basic',
           avatar_url: userData.avatar_url || null,
           bio: userData.bio || null,
           city: userData.city || null,
           phone: userData.phone || null,
           website: userData.website || null,
-          hourly_rate: userData.hourly_rate || null,
-          total_earnings: userData.total_earnings || 0,
-          total_jobs_completed: userData.total_jobs_completed || 0,
-          rating: userData.rating || 0,
-          rating_count: userData.rating_count || 0,
-          is_verified: userData.is_verified || false,
+          hourly_rate: typeof userData.hourly_rate === 'number' ? userData.hourly_rate : null,
+          total_earnings: typeof userData.total_earnings === 'number' ? userData.total_earnings : 0,
+          total_jobs_completed: typeof userData.total_jobs_completed === 'number' ? userData.total_jobs_completed : 0,
+          rating: typeof userData.rating === 'number' ? userData.rating : 0,
+          rating_count: typeof userData.rating_count === 'number' ? userData.rating_count : 0,
+          is_verified: typeof userData.is_verified === 'boolean' ? userData.is_verified : false,
           created_at: userData.created_at || new Date().toISOString(),
           updated_at: userData.updated_at || new Date().toISOString(),
         } as User

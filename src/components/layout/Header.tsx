@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -16,7 +15,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { Menu, Bell, User, LogOut, Settings, CreditCard, MessageSquare, Briefcase, Star } from 'lucide-react'
+import { Menu, Bell, User, LogOut, Settings, CreditCard, MessageSquare, Briefcase, Star, Shield } from 'lucide-react'
 
 export const Header = () => {
   const { isAuthenticated, user, logout } = useAuthStore()
@@ -31,10 +30,14 @@ export const Header = () => {
     navigate('/')
   }
 
+  // Navigation links - only show when not authenticated or on landing page
   const navigationLinks = [
-    { href: '/', label: 'Home' },
     { href: '/opportunities', label: 'Browse Opportunities' },
     { href: '/skills', label: 'Browse Skills' },
+  ]
+
+  // Only show these links when not authenticated
+  const publicLinks = [
     { href: '/about', label: 'About' },
     { href: '/contact', label: 'Contact' },
   ]
@@ -53,6 +56,16 @@ export const Header = () => {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-6">
           {navigationLinks.map((link) => (
+            <Link
+              key={link.href}
+              to={link.href}
+              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+          {/* Only show public links when not authenticated */}
+          {!isAuthenticated && publicLinks.map((link) => (
             <Link
               key={link.href}
               to={link.href}
@@ -102,11 +115,19 @@ export const Header = () => {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to="/dashboard">
+                    <Link to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'}>
                       <User className="mr-2 h-4 w-4" />
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
+                  {user?.role === 'admin' && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/admin/dashboard">
+                        <Shield className="mr-2 h-4 w-4" />
+                        Admin Panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/my-profile">
                       <Settings className="mr-2 h-4 w-4" />
@@ -149,7 +170,7 @@ export const Header = () => {
                 <Link to="/login">Login</Link>
               </Button>
               <Button asChild>
-                <Link to="/signup">Sign Up</Link>
+                <Link to="/signup">Get Started</Link>
               </Button>
             </div>
           )}
@@ -178,6 +199,17 @@ export const Header = () => {
                       {link.label}
                     </Link>
                   ))}
+                  {/* Only show public links when not authenticated */}
+                  {!isAuthenticated && publicLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      to={link.href}
+                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
                 </div>
 
                 {/* User Actions */}
@@ -194,12 +226,21 @@ export const Header = () => {
                       </div>
                     </div>
                     <Link
-                      to="/dashboard"
+                      to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'}
                       className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       Dashboard
                     </Link>
+                    {user?.role === 'admin' && (
+                      <Link
+                        to="/admin/dashboard"
+                        className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Admin Panel
+                      </Link>
+                    )}
                     <Link
                       to="/my-profile"
                       className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
@@ -243,7 +284,7 @@ export const Header = () => {
                       className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      Sign Up
+                      Get Started
                     </Link>
                   </div>
                 )}
