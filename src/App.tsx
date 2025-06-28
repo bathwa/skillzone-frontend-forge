@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -6,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { AdminRoute } from "@/components/auth/AdminRoute";
 import { Landing } from "@/pages/Landing";
 import { SignUp } from "@/pages/auth/SignUp";
 import { Login } from "@/pages/auth/Login";
@@ -17,8 +17,8 @@ import { MyProfile } from "@/pages/MyProfile";
 import { Notifications } from "@/pages/Notifications";
 import { MyTokens } from "@/pages/MyTokens";
 import { ClientOpportunities } from "@/pages/ClientOpportunities";
-import { AdminDashboard } from "@/pages/admin/AdminDashboard";
-import { NotFound } from "./pages/NotFound";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,9 +55,14 @@ const App = () => (
             <Route path="/signup" element={<SignUp />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/test-auth" element={<div className="container py-8"><h1 className="text-2xl font-bold mb-4">Auth Test</h1><p>Test page for debugging authentication issues.</p></div>} />
             
             {/* Admin routes (no layout) */}
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
+            <Route path="/admin/dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
             
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />

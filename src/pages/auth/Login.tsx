@@ -13,6 +13,7 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
 import { apiService } from '@/lib/services/apiService'
+import { supabase } from '@/integrations/supabase/client'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -27,8 +28,11 @@ type LoginFormData = z.infer<typeof loginSchema>
 type AdminKeyFormData = z.infer<typeof adminKeySchema>
 
 // Admin email detection
-const ADMIN_EMAILS = ['abathwabiz@gmail.com', 'admin@abathwa.com']
-const ADMIN_KEY = 'vvv.ndev'
+const ADMIN_EMAILS = [
+  import.meta.env.VITE_ADMIN_EMAIL_1 || 'abathwabiz@gmail.com', 
+  import.meta.env.VITE_ADMIN_EMAIL_2 || 'admin@abathwa.com'
+]
+const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || 'vvv.ndev'
 
 export const Login = () => {
   const navigate = useNavigate()
@@ -71,28 +75,209 @@ export const Login = () => {
     setIsLoading(true)
     
     try {
+      console.log('Login attempt for email:', data.email)
+      
       // Check if admin email and key is required
       if (ADMIN_EMAILS.includes(data.email.toLowerCase())) {
+        console.log('Admin email detected, showing admin key form')
         setShowAdminKey(true)
         setAdminEmail(data.email)
         setIsLoading(false)
         return
       }
       
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Login timeout')), 10000) // 10 second timeout
+      })
+      
       // Real API call to authenticate user
-      const response = await apiService.login(data.email, data.password)
+      console.log('Attempting regular user login...')
+      const loginPromise = apiService.login(data.email, data.password)
+      
+      const response = await Promise.race([loginPromise, timeoutPromise]) as any
+      
+      console.log('Login response:', response)
       
       if (response.success && response.data) {
+        console.log('Login successful, user data:', response.data)
         login(response.data)
         toast.success('Welcome back to SkillZone!')
         navigate('/dashboard')
       } else {
+        console.error('Login failed:', response.error)
         toast.error(response.error || 'Invalid email or password. Please try again.')
       }
     } catch (error) {
-      toast.error('Authentication failed. Please try again.')
+      console.error('Login error:', error)
+      if (error instanceof Error && error.message === 'Login timeout') {
+        toast.error('Login timed out. Please try again.')
+      } else {
+        toast.error('Authentication failed. Please try again.')
+      }
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  // Test function to check Supabase connection
+  const testSupabaseConnection = async () => {
+    try {
+      console.log('Testing Supabase connection...')
+      const { data, error } = await supabase.from('profiles').select('count').limit(1)
+      console.log('Supabase test result:', { data, error })
+      if (error) {
+        toast.error(`Supabase connection failed: ${error.message}`)
+      } else {
+        toast.success('Supabase connection successful!')
+      }
+    } catch (error) {
+      console.error('Supabase test error:', error)
+      toast.error('Supabase connection test failed')
+    }
+  }
+
+  // Test function to check profiles table
+  const testProfilesTable = async () => {
+    try {
+      console.log('Testing profiles table...')
+      const { data, error } = await supabase.from('profiles').select('*').limit(5)
+      console.log('Profiles table result:', { data, error })
+      if (error) {
+        toast.error(`Profiles table error: ${error.message}`)
+      } else {
+        toast.success(`Found ${data?.length || 0} profiles in database`)
+        console.log('Profiles found:', data)
+      }
+    } catch (error) {
+      console.error('Profiles table test error:', error)
+      toast.error('Profiles table test failed')
+    }
+  }
+
+  // Test function for simple login without profile fetch
+  const testSimpleLogin = async () => {
+    try {
+      console.log('Testing simple login...')
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: 'test@example.com',
+        password: 'password123',
+      })
+      console.log('Simple login result:', { data, error })
+      if (error) {
+        toast.error(`Simple login failed: ${error.message}`)
+      } else {
+        toast.success('Simple login successful!')
+      }
+    } catch (error) {
+      console.error('Simple login error:', error)
+      toast.error('Simple login test failed')
+    }
+  }
+
+  // Test function to fix existing profiles without roles
+  const testFixProfiles = async () => {
+    try {
+      console.log('Testing profile fix...')
+      
+      // First, let's see what profiles exist
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .limit(10)
+      
+      console.log('Existing profiles:', profiles)
+      
+      if (profilesError) {
+        toast.error(`Failed to fetch profiles: ${profilesError.message}`)
+        return
+      }
+      
+      // Find profiles without roles
+      const profilesWithoutRoles = profiles?.filter(p => !p.role) || []
+      console.log('Profiles without roles:', profilesWithoutRoles)
+      
+      if (profilesWithoutRoles.length === 0) {
+        toast.success('All profiles have roles!')
+        return
+      }
+      
+      // Update profiles without roles
+      for (const profile of profilesWithoutRoles) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            role: 'freelancer',
+            tokens: profile.tokens || 5,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', profile.id)
+        
+        if (updateError) {
+          console.error(`Failed to update profile ${profile.id}:`, updateError)
+        } else {
+          console.log(`Updated profile ${profile.id} with role freelancer`)
+        }
+      }
+      
+      toast.success(`Fixed ${profilesWithoutRoles.length} profiles without roles`)
+    } catch (error) {
+      console.error('Profile fix test error:', error)
+      toast.error('Profile fix test failed')
+    }
+  }
+
+  // Test function to create a test user
+  const testCreateUser = async () => {
+    try {
+      console.log('Testing user creation...')
+      
+      const testEmail = `test${Date.now()}@example.com`
+      const testPassword = 'password123'
+      
+      console.log('Creating test user with email:', testEmail)
+      
+      const { data, error } = await supabase.auth.signUp({
+        email: testEmail,
+        password: testPassword,
+        options: {
+          data: {
+            first_name: 'Test',
+            last_name: 'User',
+            role: 'client'
+          }
+        }
+      })
+      
+      console.log('User creation result:', { data, error })
+      
+      if (error) {
+        toast.error(`User creation failed: ${error.message}`)
+      } else {
+        toast.success('Test user created! Check console for details.')
+        
+        // Wait a moment then check if profile was created
+        setTimeout(async () => {
+          if (data.user) {
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', data.user.id)
+              .single()
+            
+            console.log('Profile check result:', { profile, profileError })
+            
+            if (profile) {
+              toast.success(`Profile created with role: ${profile.role || 'NO ROLE'}`)
+            } else {
+              toast.error('No profile found after user creation')
+            }
+          }
+        }, 2000)
+      }
+    } catch (error) {
+      console.error('User creation test error:', error)
+      toast.error('User creation test failed')
     }
   }
 
@@ -231,6 +416,56 @@ export const Login = () => {
               ) : (
                 'Sign In'
               )}
+            </Button>
+
+            {/* Test button for debugging */}
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full" 
+              onClick={testSupabaseConnection}
+            >
+              Test Database Connection
+            </Button>
+
+            {/* Profiles table test button */}
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full" 
+              onClick={testProfilesTable}
+            >
+              Test Profiles Table
+            </Button>
+
+            {/* Simple login test button */}
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full" 
+              onClick={testSimpleLogin}
+            >
+              Test Simple Login
+            </Button>
+
+            {/* Profile fix test button */}
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full" 
+              onClick={testFixProfiles}
+            >
+              Test Profile Fix
+            </Button>
+
+            {/* User creation test button */}
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full" 
+              onClick={testCreateUser}
+            >
+              Test User Creation
             </Button>
           </form>
 

@@ -63,7 +63,14 @@ export const SignUp = () => {
   const { login } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   
-  const preselectedRole = searchParams.get('role') as 'client' | 'freelancer' | null
+  const preselectedRole = searchParams.get('role') as 'client' | 'freelancer' | 'service_provider' | null
+
+  // Map service_provider to freelancer for consistency
+  const getValidRole = (role: string | null): 'client' | 'freelancer' => {
+    if (role === 'service_provider' || role === 'freelancer') return 'freelancer'
+    if (role === 'client') return 'client'
+    return 'freelancer' // default
+  }
 
   const {
     register,
@@ -75,7 +82,7 @@ export const SignUp = () => {
   } = useForm<SignUpFormData>({
     resolver: zodResolver(signUpSchema),
     defaultValues: {
-      role: preselectedRole || 'freelancer',
+      role: getValidRole(preselectedRole),
     }
   })
 
@@ -84,7 +91,7 @@ export const SignUp = () => {
 
   useEffect(() => {
     if (preselectedRole) {
-      setValue('role', preselectedRole)
+      setValue('role', getValidRole(preselectedRole))
     }
   }, [preselectedRole, setValue])
 
@@ -129,6 +136,7 @@ export const SignUp = () => {
       console.log('Signup response:', response)
       
       if (response.success && response.data) {
+        console.log('Signup successful, user data:', response.data)
         login(response.data)
         toast.success('Account created successfully! Welcome to SkillZone!')
         navigate('/dashboard')

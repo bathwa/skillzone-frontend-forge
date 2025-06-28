@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { useToast } from '@/hooks/use-toast'
 import { useAuthStore } from '@/stores/authStore'
 import { countryService } from '@/lib/services/countryService'
 import { COUNTRY_CONFIGS, type CountryCode } from '@/lib/constants'
@@ -25,6 +24,7 @@ import {
   X
 } from 'lucide-react'
 import { apiService } from '@/lib/services/apiService'
+import { toast } from 'sonner'
 
 interface EscrowAccount {
   id: string
@@ -46,9 +46,24 @@ interface SupportContact {
   is_active: boolean
 }
 
+interface EscrowAccountFormData {
+  country: CountryCode
+  account_name: string
+  account_number: string
+  account_type: 'mobile_wallet' | 'bank_account' | 'digital_wallet'
+  provider?: string
+  phone_number?: string
+}
+
+interface SupportContactFormData {
+  country: CountryCode
+  phone: string
+  email: string
+  whatsapp: string
+}
+
 export default function AdminDashboard() {
   const { user } = useAuthStore()
-  const { toast } = useToast()
   const [selectedCountry, setSelectedCountry] = useState<CountryCode>('zimbabwe')
   const [escrowAccounts, setEscrowAccounts] = useState<EscrowAccount[]>([])
   const [supportContacts, setSupportContacts] = useState<SupportContact[]>([])
@@ -61,19 +76,6 @@ export default function AdminDashboard() {
   const [showSupportForm, setShowSupportForm] = useState(false)
   const [showAddEscrowForm, setShowAddEscrowForm] = useState(false)
   const [showAddSupportForm, setShowAddSupportForm] = useState(false)
-
-  // Check if user is admin
-  useEffect(() => {
-    if (user?.role !== 'admin') {
-      toast({
-        title: 'Access Denied',
-        description: 'You need admin privileges to access this page.',
-        variant: 'destructive',
-      })
-      // Redirect to dashboard
-      window.location.href = '/dashboard'
-    }
-  }, [user, toast])
 
   // Load country data
   useEffect(() => {
@@ -102,7 +104,7 @@ export default function AdminDashboard() {
         toast.success('Escrow account saved successfully')
         setShowEscrowForm(false)
         // Refresh escrow accounts list
-        loadEscrowAccounts()
+        loadCountryData()
       } else {
         toast.error(response.error || 'Failed to save escrow account')
       }
@@ -127,7 +129,7 @@ export default function AdminDashboard() {
         toast.success('Support contact saved successfully')
         setShowSupportForm(false)
         // Refresh support contacts list
-        loadSupportContacts()
+        loadCountryData()
       } else {
         toast.error(response.error || 'Failed to save support contact')
       }
@@ -154,7 +156,7 @@ export default function AdminDashboard() {
         toast.success('Escrow account added successfully')
         setShowAddEscrowForm(false)
         // Refresh escrow accounts list
-        loadEscrowAccounts()
+        loadCountryData()
       } else {
         toast.error(response.error || 'Failed to add escrow account')
       }
@@ -179,7 +181,7 @@ export default function AdminDashboard() {
         toast.success('Support contact added successfully')
         setShowAddSupportForm(false)
         // Refresh support contacts list
-        loadSupportContacts()
+        loadCountryData()
       } else {
         toast.error(response.error || 'Failed to add support contact')
       }
@@ -266,10 +268,6 @@ export default function AdminDashboard() {
       // Revert the change
       setSupportContacts(supportContacts)
     }
-  }
-
-  if (user?.role !== 'admin') {
-    return null
   }
 
   return (

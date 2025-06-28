@@ -109,12 +109,17 @@ class ApiService {
   // Authentication methods
   async login(email: string, password: string): Promise<ApiResponse<User>> {
     try {
+      console.log('API Service: Attempting login for email:', email)
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
+      console.log('Supabase auth response:', { data, error })
+
       if (error) {
+        console.error('Supabase auth error:', error)
         return {
           data: null,
           error: error.message,
@@ -123,12 +128,15 @@ class ApiService {
       }
 
       if (!data.user) {
+        console.error('No user data returned from Supabase')
         return {
           data: null,
           error: 'No user data returned',
           success: false,
         }
       }
+
+      console.log('User authenticated, fetching profile for ID:', data.user.id)
 
       // Get user profile
       const { data: profile, error: profileError } = await supabase
@@ -137,7 +145,64 @@ class ApiService {
         .eq('id', data.user.id)
         .single()
 
-      if (profileError || !profile) {
+      console.log('Profile fetch result:', { profile, profileError })
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError)
+        
+        // If profile doesn't exist, try to create one from user metadata
+        if (profileError.code === 'PGRST116') { // No rows returned
+          console.log('Profile not found, creating from user metadata...')
+          
+          const userMetadata = data.user.user_metadata || {}
+          const profileData = {
+            id: data.user.id,
+            email: data.user.email || email,
+            first_name: userMetadata.first_name || '',
+            last_name: userMetadata.last_name || '',
+            role: (userMetadata.role || 'freelancer') as Database['public']['Enums']['user_role'],
+            country: null,
+            tokens: 5,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }
+
+          console.log('Creating profile with data:', profileData)
+
+          const { error: createError } = await supabase
+            .from('profiles')
+            .insert([profileData])
+
+          if (createError) {
+            console.error('Profile creation error:', createError)
+            return {
+              data: null,
+              error: `Failed to create user profile: ${createError.message}`,
+              success: false,
+            }
+          }
+
+          // Return user data without profile mapping
+          const user: User = {
+            id: data.user.id,
+            email: data.user.email || email,
+            first_name: userMetadata.first_name || '',
+            last_name: userMetadata.last_name || '',
+            name: `${userMetadata.first_name || ''} ${userMetadata.last_name || ''}`.trim() || 'Anonymous User',
+            role: (userMetadata.role || 'freelancer') as 'client' | 'freelancer' | 'admin',
+            country: null,
+            tokens_balance: 5,
+            subscription_tier: 'basic',
+          }
+
+          console.log('Login successful with created profile:', user)
+          return {
+            data: user,
+            error: null,
+            success: true,
+          }
+        }
+
         return {
           data: null,
           error: 'Failed to load user profile',
@@ -145,7 +210,42 @@ class ApiService {
         }
       }
 
+      if (!profile) {
+        console.error('No profile data returned')
+        return {
+          data: null,
+          error: 'Failed to load user profile',
+          success: false,
+        }
+      }
+
+      // Check if profile has a role, if not, update it with default role
+      if (!profile.role) {
+        console.log('Profile found but missing role, updating with default role...')
+        
+        const userMetadata = data.user.user_metadata || {}
+        const defaultRole = (userMetadata.role || 'freelancer') as Database['public']['Enums']['user_role']
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            role: defaultRole,
+            tokens: profile.tokens || 5,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', data.user.id)
+
+        if (updateError) {
+          console.error('Profile update error:', updateError)
+          // Continue with login even if update fails
+        } else {
+          console.log('Profile updated with role:', defaultRole)
+          profile.role = defaultRole
+        }
+      }
+
       const userProfile = mapDbProfileToUserProfile(profile)
+      console.log('Mapped user profile:', userProfile)
       
       return {
         data: {
@@ -164,6 +264,7 @@ class ApiService {
         success: true,
       }
     } catch (error) {
+      console.error('Login method error:', error)
       return {
         data: null,
         error: 'Authentication failed',
@@ -174,20 +275,52 @@ class ApiService {
 
   async signup(userData: SignUpData): Promise<ApiResponse<User>> {
     try {
+      console.log('API Service: Attempting signup for email:', userData.email)
+      
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
+        options: {
+          data: {
+            first_name: userData.first_name,
+            last_name: userData.last_name,
+            role: userData.role,
+          }
+        }
       })
 
-      if (authError || !authData.user) {
-        console.error('Auth error:', authError)
+      console.log('Supabase auth signup response:', { authData, authError })
+
+      if (authError) {
+        console.error('Auth signup error:', authError)
         return {
           data: null,
-          error: authError?.message || 'Failed to create user account',
+          error: authError.message || 'Failed to create user account',
           success: false,
         }
       }
+
+      // Check if email confirmation is required
+      if (authData.user && !authData.session) {
+        console.log('Email confirmation required')
+        return {
+          data: null,
+          error: 'Please check your email and confirm your account before signing in.',
+          success: false,
+        }
+      }
+
+      if (!authData.user) {
+        console.error('No user data returned from signup')
+        return {
+          data: null,
+          error: 'Failed to create user account',
+          success: false,
+        }
+      }
+
+      console.log('Auth user created, creating profile for ID:', authData.user.id)
 
       // Create profile with proper type casting
       const profileData = {
@@ -207,6 +340,8 @@ class ApiService {
       const { error: profileError } = await supabase
         .from('profiles')
         .insert([profileData])
+
+      console.log('Profile creation result:', { profileError })
 
       if (profileError) {
         console.error('Profile creation error:', profileError)
@@ -229,13 +364,15 @@ class ApiService {
         subscription_tier: 'basic',
       }
 
+      console.log('Signup successful, returning user:', user)
+
       return {
         data: user,
         error: null,
         success: true,
       }
     } catch (error) {
-      console.error('Signup error:', error)
+      console.error('Signup method error:', error)
       return {
         data: null,
         error: 'Failed to create account',

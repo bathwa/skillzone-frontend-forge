@@ -110,14 +110,15 @@ export const useAuthStore = create<AuthState>()(
                 isAuthenticated: true,
               })
             } else {
-              // Profile doesn't exist yet, create basic user from auth data
+              // Profile doesn't exist yet, try to get role from user metadata
+              const userRole = session.user.user_metadata?.role || 'freelancer'
               const user = {
                 id: session.user.id,
                 email: session.user.email || '',
                 first_name: session.user.user_metadata?.first_name || '',
                 last_name: session.user.user_metadata?.last_name || '',
                 name: session.user.user_metadata?.name || 'Anonymous User',
-                role: 'freelancer' as const,
+                role: userRole as 'client' | 'freelancer' | 'admin',
                 country: null,
                 tokens: 5,
                 tokens_balance: 5,
