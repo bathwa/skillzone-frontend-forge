@@ -320,36 +320,23 @@ class ApiService {
         }
       }
 
-      console.log('Auth user created, creating profile for ID:', authData.user.id)
+      console.log('Auth user created, profile should be created by trigger for ID:', authData.user.id)
 
-      // Create profile with proper type casting
-      const profileData = {
-        id: authData.user.id,
-        email: userData.email,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        role: userData.role as Database['public']['Enums']['user_role'],
-        country: userData.country,
-        tokens: 5, // Welcome bonus
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }
-
-      console.log('Creating profile with data:', profileData)
-
-      const { error: profileError } = await supabase
+      // The trigger function creates a basic profile, so we need to update it with additional fields
+      const { error: updateError } = await supabase
         .from('profiles')
-        .insert([profileData])
+        .update({
+          country: userData.country,
+          tokens: 5, // Welcome bonus
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', authData.user.id)
 
-      console.log('Profile creation result:', { profileError })
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError)
-        return {
-          data: null,
-          error: `Failed to create user profile: ${profileError.message}`,
-          success: false,
-        }
+      if (updateError) {
+        console.error('Profile update error:', updateError)
+        // Continue with signup even if update fails, as basic profile exists
+      } else {
+        console.log('Profile updated with additional fields')
       }
 
       const user: User = {
