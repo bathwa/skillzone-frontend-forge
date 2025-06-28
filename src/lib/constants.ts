@@ -369,4 +369,12 @@ export const CACHE_CONFIG = {
     maxAge: 2 * 60 * 1000, // 2 minutes
     maxItems: 50,
   },
-} 
+}
+
+// Admin configuration
+export const ADMIN_EMAILS = [
+  import.meta.env.VITE_ADMIN_EMAIL_1 || 'abathwabiz@gmail.com', 
+  import.meta.env.VITE_ADMIN_EMAIL_2 || 'admin@abathwa.com'
+]
+
+export const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || 'vvv.ndev' 

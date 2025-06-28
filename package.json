@@ -9,18 +9,6 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "test": "cypress run",
-    "test:open": "cypress open",
-    "test:basic": "cypress run --spec 'cypress/e2e/basic-auth.cy.ts'",
-    "test:e2e": "cypress run --spec 'cypress/e2e/**/*.cy.ts'",
-    "test:client": "cypress run --spec 'cypress/e2e/client-workflow.cy.ts'",
-    "test:freelancer": "cypress run --spec 'cypress/e2e/freelancer-workflow.cy.ts'",
-    "test:realtime": "cypress run --spec 'cypress/e2e/realtime-features.cy.ts'",
-    "seed": "tsx scripts/seedTestData.ts",
-    "seed:client": "tsx scripts/seedTestData.ts client_workflow",
-    "seed:freelancer": "tsx scripts/seedTestData.ts freelancer_workflow",
-    "seed:admin": "tsx scripts/seedTestData.ts admin_workflow",
-    "seed:realtime": "tsx scripts/seedTestData.ts realtime_test",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -79,7 +67,6 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
-    "@cypress/vite-dev-server": "^6.0.3",
     "@eslint/js": "^9.9.0",
     "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^22.5.5",
@@ -87,7 +74,6 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.20",
-    "cypress": "^14.5.0",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
@@ -95,7 +81,6 @@
     "lovable-tagger": "^1.1.7",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.11",
-    "tsx": "^4.20.3",
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1"

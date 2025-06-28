@@ -52,10 +52,9 @@ const App = () => (
             </Route>
             
             {/* Auth routes (no layout) */}
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/test-auth" element={<div className="container py-8"><h1 className="text-2xl font-bold mb-4">Auth Test</h1><p>Test page for debugging authentication issues.</p></div>} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
             
             {/* Admin routes (no layout) */}
             <Route path="/admin/dashboard" element={
