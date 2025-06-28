@@ -51,70 +51,20 @@ export const Notifications = () => {
       if (response.success && response.data) {
         setNotifications(response.data)
       } else {
-        // Fallback to mock data for demo
-        setNotifications(getMockNotifications())
+        // Show empty state instead of mock data
+        setNotifications([])
+        if (response.error) {
+          toast.error(response.error)
+        }
       }
     } catch (error) {
-      // Fallback to mock data for demo
-      setNotifications(getMockNotifications())
+      // Show empty state instead of mock data
+      setNotifications([])
+      toast.error('Failed to load notifications')
     } finally {
       setIsLoading(false)
     }
   }
-
-  const getMockNotifications = (): Notification[] => [
-    {
-      id: '1',
-      user_id: user?.id || '',
-      type: 'proposal_received',
-      title: 'New proposal on "E-commerce Website Development"',
-      message: 'Sarah J. submitted a proposal for your project. Review it now to find the perfect match.',
-      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    },
-    {
-      id: '2',
-      user_id: user?.id || '',
-      type: 'project_completed',
-      title: 'Project completed successfully',
-      message: 'Mobile App UI/UX Design project has been completed. Please review and release payment.',
-      read_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: '3',
-      user_id: user?.id || '',
-      type: 'message_received',
-      title: 'New message from client',
-      message: 'David K. sent you a message about the project requirements and timeline.',
-      read_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-      created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: '4',
-      user_id: user?.id || '',
-      type: 'token_purchase',
-      title: 'Token purchase successful',
-      message: 'Your purchase of 15 tokens has been completed. Your balance has been updated.',
-      created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    },
-    {
-      id: '5',
-      user_id: user?.id || '',
-      type: 'proposal_accepted',
-      title: 'Proposal accepted!',
-      message: 'Congratulations! Your proposal for "Brand Identity Design" has been accepted by the client.',
-      created_at: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
-    },
-    {
-      id: '6',
-      user_id: user?.id || '',
-      type: 'system',
-      title: 'Welcome to SkillZone!',
-      message: 'Thank you for joining SkillZone. Complete your profile to start finding opportunities.',
-      read_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
-      created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    },
-  ]
 
   const markAsRead = async (notificationId: string) => {
     try {
@@ -128,17 +78,11 @@ export const Notifications = () => {
           )
         )
         toast.success('Notification marked as read')
+      } else {
+        toast.error(response.error || 'Failed to mark notification as read')
       }
     } catch (error) {
-      // Update locally for demo
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif.id === notificationId 
-            ? { ...notif, read_at: new Date().toISOString() }
-            : notif
-        )
-      )
-      toast.success('Notification marked as read')
+      toast.error('Failed to mark notification as read')
     }
   }
 
@@ -152,11 +96,7 @@ export const Notifications = () => {
       )
       toast.success('All notifications marked as read')
     } catch (error) {
-      // Update locally for demo
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, read_at: notif.read_at || new Date().toISOString() }))
-      )
-      toast.success('All notifications marked as read')
+      toast.error('Failed to mark all notifications as read')
     }
   }
 

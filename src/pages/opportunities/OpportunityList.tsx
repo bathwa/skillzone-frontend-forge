@@ -83,79 +83,21 @@ export const OpportunityList = () => {
         setOpportunities(response.data)
         setTotalPages(response.pagination?.totalPages || 1)
       } else {
-        // Fallback to mock data for demo
-        setMockOpportunities()
+        // Show empty state instead of mock data
+        setOpportunities([])
+        setTotalPages(1)
+        if (response.error) {
+          toast.error(response.error)
+        }
       }
     } catch (error) {
       toast.error('Failed to load opportunities')
-      // Fallback to mock data for demo
-      setMockOpportunities()
+      // Show empty state instead of mock data
+      setOpportunities([])
+      setTotalPages(1)
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const setMockOpportunities = () => {
-    const mockOpportunities: Opportunity[] = [
-      {
-        id: '1',
-        title: 'E-commerce Website Development',
-        description: 'Looking for a skilled developer to build a modern e-commerce platform with React and Node.js. Must have experience with payment gateways and responsive design.',
-        budget_min: 2000,
-        budget_max: 5000,
-        category: 'web_development',
-        type: 'premium',
-        client_country: 'south_africa',
-        skills: ['React', 'Node.js', 'MongoDB', 'Stripe'],
-        posted_at: '2024-01-15',
-        proposals_count: 12,
-        status: 'active',
-      },
-      {
-        id: '2', 
-        title: 'Mobile App UI/UX Design',
-        description: 'Need a creative designer to create user interface designs for a fintech mobile application. Looking for modern, clean designs.',
-        budget_min: 800,
-        budget_max: 1500,
-        category: 'design',
-        type: 'standard',
-        client_country: 'botswana',
-        skills: ['Figma', 'UI/UX Design', 'Mobile Design', 'Prototyping'],
-        posted_at: '2024-01-14',
-        proposals_count: 8,
-        status: 'active',
-      },
-      {
-        id: '3',
-        title: 'Content Writing for Tech Blog',
-        description: 'Seeking experienced technical writers to create engaging blog posts about emerging technologies, AI, and software development.',
-        budget_min: 500,
-        budget_max: 1000,
-        category: 'writing',
-        type: 'standard',
-        client_country: 'zimbabwe',
-        skills: ['Technical Writing', 'SEO', 'Research', 'AI/ML'],
-        posted_at: '2024-01-13',
-        proposals_count: 15,
-        status: 'active',
-      },
-      {
-        id: '4',
-        title: 'Data Analysis Dashboard',
-        description: 'Build an interactive dashboard for sales data visualization using Python and modern charting libraries. Experience with big data preferred.',
-        budget_min: 1500,
-        budget_max: 3000,
-        category: 'data_science',
-        type: 'premium',
-        client_country: 'namibia',
-        skills: ['Python', 'Data Analysis', 'Tableau', 'SQL'],
-        posted_at: '2024-01-12',
-        proposals_count: 6,
-        status: 'active',
-      },
-    ]
-    setOpportunities(mockOpportunities)
-    setTotalPages(1)
   }
 
   const filteredOpportunities = opportunities.filter(opportunity => {

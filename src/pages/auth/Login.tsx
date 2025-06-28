@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2, Shield } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
+import { apiService } from '@/services/apiService'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -70,9 +71,6 @@ export const Login = () => {
     setIsLoading(true)
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      
       // Check if admin email and key is required
       if (ADMIN_EMAILS.includes(data.email.toLowerCase())) {
         setShowAdminKey(true)
@@ -81,25 +79,18 @@ export const Login = () => {
         return
       }
       
-      // Create mock user based on email (for demo purposes)
-      const mockUser = {
-        id: crypto.randomUUID(),
-        email: data.email,
-        first_name: data.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        last_name: '',
-        name: data.email.split('@')[0].replace(/[^a-zA-Z]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-        role: data.email.includes('client') ? 'client' as const : 'freelancer' as const,
-        country: 'south_africa' as const,
-        tokens_balance: 12,
-        subscription_tier: 'pro' as const,
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.email}`,
-      }
+      // Real API call to authenticate user
+      const response = await apiService.login(data.email, data.password)
       
-      login(mockUser)
-      toast.success('Welcome back to SkillZone!')
-      navigate('/dashboard')
+      if (response.success && response.data) {
+        login(response.data)
+        toast.success('Welcome back to SkillZone!')
+        navigate('/dashboard')
+      } else {
+        toast.error(response.error || 'Invalid email or password. Please try again.')
+      }
     } catch (error) {
-      toast.error('Invalid email or password. Please try again.')
+      toast.error('Authentication failed. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -109,9 +100,6 @@ export const Login = () => {
     setIsLoading(true)
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
       // Validate admin key
       if (data.adminKey !== ADMIN_KEY) {
         toast.error('Invalid admin key. Please try again.')
@@ -119,23 +107,18 @@ export const Login = () => {
         return
       }
       
-      // Create admin user
-      const adminUser = {
-        id: crypto.randomUUID(),
-        email: adminEmail,
-        first_name: 'Admin',
-        last_name: 'User',
-        name: 'Admin User',
-        role: 'admin' as const,
-        country: 'zimbabwe' as const,
-        tokens_balance: 999,
-        subscription_tier: 'enterprise' as const,
-        avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${adminEmail}`,
-      }
+      // Real API call for admin authentication
+      const response = await apiService.login(adminEmail, data.adminKey)
       
-      login(adminUser)
-      toast.success('Welcome to Admin Dashboard!')
-      navigate('/admin/dashboard')
+      if (response.success && response.data) {
+        // Ensure admin role
+        const adminUser = { ...response.data, role: 'admin' as const }
+        login(adminUser)
+        toast.success('Welcome to Admin Dashboard!')
+        navigate('/admin/dashboard')
+      } else {
+        toast.error('Admin authentication failed. Please try again.')
+      }
     } catch (error) {
       toast.error('Authentication failed. Please try again.')
     } finally {

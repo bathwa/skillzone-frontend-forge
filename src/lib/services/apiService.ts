@@ -320,9 +320,14 @@ export class ApiService {
     country?: Database['public']['Enums']['country_code']
     type?: 'standard' | 'premium'
     status?: 'active' | 'closed'
+    client_id?: string
     page?: number
     limit?: number
   }): Promise<PaginatedResponse<Opportunity>> {
+    const page = filters?.page || 1
+    const limit = filters?.limit || 10
+    const offset = (page - 1) * limit
+
     let query = supabase
       .from('opportunities')
       .select('*', { count: 'exact' })
@@ -339,22 +344,25 @@ export class ApiService {
     if (filters?.status) {
       query = query.eq('status', filters.status)
     }
-
-    const page = filters?.page || 1
-    const limit = filters?.limit || 10
-    const from = (page - 1) * limit
-    const to = from + limit - 1
-
-    query = query.range(from, to).order('created_at', { ascending: false })
+    if (filters?.client_id) {
+      query = query.eq('client_id', filters.client_id)
+    }
 
     const { data, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
 
     if (error) {
       return {
         data: null,
         error: error.message,
         success: false,
-        pagination: { page, limit, total: 0, totalPages: 0 }
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0
+        }
       }
     }
 
@@ -567,6 +575,28 @@ export class ApiService {
     }
   }
 
+  async getTokenTransactions(userId: string): Promise<ApiResponse<TokenTransaction[]>> {
+    const { data, error } = await supabase
+      .from('token_transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      return {
+        data: null,
+        error: error.message,
+        success: false,
+      }
+    }
+
+    return {
+      data: data as TokenTransaction[],
+      error: null,
+      success: true,
+    }
+  }
+
   private async updateUserTokenBalance(userId: string, amount: number): Promise<void> {
     await supabase
       .from('profiles')
@@ -627,19 +657,56 @@ export class ApiService {
     platformFees: number
     pendingEscrow: number
   }>> {
-    // This would typically call admin-specific endpoints
-    // For now, return mock data structure
-    return {
-      data: {
-        totalUsers: 1234,
-        activeFreelancers: 856,
-        activeClients: 378,
-        totalTransactions: 45678,
-        platformFees: 4567,
-        pendingEscrow: 12345,
-      },
-      error: null,
-      success: true,
+    try {
+      // Get total users
+      const { count: totalUsers } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+
+      // Get active freelancers
+      const { count: activeFreelancers } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'freelancer')
+
+      // Get active clients
+      const { count: activeClients } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'client')
+
+      // Get total transactions
+      const { count: totalTransactions } = await supabase
+        .from('token_transactions')
+        .select('*', { count: 'exact', head: true })
+
+      // Calculate platform fees (10% of total transactions)
+      const platformFees = (totalTransactions || 0) * 0.1
+
+      // Get pending escrow amount
+      const { count: pendingEscrow } = await supabase
+        .from('proposals')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'accepted')
+
+      return {
+        data: {
+          totalUsers: totalUsers || 0,
+          activeFreelancers: activeFreelancers || 0,
+          activeClients: activeClients || 0,
+          totalTransactions: totalTransactions || 0,
+          platformFees,
+          pendingEscrow: pendingEscrow || 0,
+        },
+        error: null,
+        success: true,
+      }
+    } catch (error) {
+      return {
+        data: null,
+        error: 'Failed to load admin statistics',
+        success: false,
+      }
     }
   }
 

@@ -37,61 +37,38 @@ export const MyTokens = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
   const [isPurchasing, setIsPurchasing] = useState(false)
+  const [tokenBalance, setTokenBalance] = useState<number>(0)
 
   useEffect(() => {
     if (user?.id) {
-      loadTransactionHistory()
+      loadTokenData()
     }
   }, [user])
 
-  const loadTransactionHistory = async () => {
+  const loadTokenData = async () => {
     if (!user?.id) return
 
+    setIsLoading(true)
     try {
-      // For demo purposes, create mock transaction history
-      const mockTransactions: TokenTransaction[] = [
-        {
-          id: '1',
-          user_id: user.id,
-          type: 'purchase',
-          amount: 15,
-          balance_after: 20,
-          description: 'Standard package - 15 tokens',
-          reference: 'PURCHASE_123456',
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-        },
-        {
-          id: '2',
-          user_id: user.id,
-          type: 'spend',
-          amount: -2,
-          balance_after: 18,
-          description: 'Applied to opportunity: E-commerce Website Development',
-          created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-        },
-        {
-          id: '3',
-          user_id: user.id,
-          type: 'bonus',
-          amount: 5,
-          balance_after: 20,
-          description: 'Welcome bonus - 5 tokens',
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
-        },
-        {
-          id: '4',
-          user_id: user.id,
-          type: 'purchase',
-          amount: 35,
-          balance_after: 55,
-          description: 'Premium package - 35 tokens',
-          reference: 'PURCHASE_123455',
-          created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 2 weeks ago
-        },
-      ]
-      setTransactions(mockTransactions)
+      // Load token balance
+      const balanceResponse = await apiService.getUserTokenBalance(user.id)
+      if (balanceResponse.success && balanceResponse.data !== null) {
+        setTokenBalance(balanceResponse.data)
+      }
+
+      // Load transaction history
+      const transactionsResponse = await apiService.getTokenTransactions(user.id)
+      if (transactionsResponse.success && transactionsResponse.data) {
+        setTransactions(transactionsResponse.data)
+      } else {
+        setTransactions([])
+        if (transactionsResponse.error) {
+          toast.error(transactionsResponse.error)
+        }
+      }
     } catch (error) {
-      toast.error('Failed to load transaction history')
+      toast.error('Failed to load token data')
+      setTransactions([])
     } finally {
       setIsLoading(false)
     }
@@ -203,7 +180,7 @@ export const MyTokens = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-2xl font-bold text-primary">Token Balance</h2>
-                    <div className="text-4xl font-bold mt-2">{user.tokens_balance}</div>
+                    <div className="text-4xl font-bold mt-2">{tokenBalance}</div>
                     <p className="text-muted-foreground mt-1">Available tokens</p>
                   </div>
                   <div className="text-right">

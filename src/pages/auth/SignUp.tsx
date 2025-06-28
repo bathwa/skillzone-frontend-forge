@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
+import { apiService } from '@/services/apiService'
 
 const signUpSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -103,37 +104,29 @@ export const SignUp = () => {
 
   const passwordStrength = getPasswordStrength(password || '')
 
-  const onSubmit = async (data: SignUpFormData) => {
+  const onSignUpSubmit = async (data: SignUpFormData) => {
     setIsLoading(true)
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      // Split name into first and last name
-      const nameParts = data.name.trim().split(' ')
-      const firstName = nameParts[0] || ''
-      const lastName = nameParts.slice(1).join(' ') || ''
-      
-      // Create mock user
-      const newUser = {
-        id: crypto.randomUUID(),
+      // Real API call to create user account
+      const response = await apiService.signup({
         email: data.email,
-        first_name: firstName,
-        last_name: lastName,
-        name: data.name,
+        password: data.password,
+        first_name: data.name.split(' ')[0],
+        last_name: data.name.split(' ').slice(1).join(' '),
         role: data.role,
-        country: data.country as any,
-        tokens: 5, // Welcome bonus - use 'tokens' instead of 'tokens_balance' to match DB schema
-        tokens_balance: 5, // Also include tokens_balance for frontend compatibility
-        subscription_tier: 'basic' as const,
-      }
+        country: data.country,
+      })
       
-      login(newUser)
-      toast.success('Account created successfully! Welcome to SkillZone!')
-      navigate('/dashboard')
+      if (response.success && response.data) {
+        login(response.data)
+        toast.success('Account created successfully! Welcome to SkillZone!')
+        navigate('/dashboard')
+      } else {
+        toast.error(response.error || 'Failed to create account. Please try again.')
+      }
     } catch (error) {
-      toast.error('Failed to create account. Please try again.')
+      toast.error('Account creation failed. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -149,7 +142,7 @@ export const SignUp = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSignUpSubmit)} className="space-y-4">
             {/* Name */}
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>

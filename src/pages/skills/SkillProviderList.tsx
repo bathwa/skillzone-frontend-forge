@@ -90,103 +90,21 @@ export const SkillProviderList = () => {
         setProfiles(response.data)
         setTotalPages(response.pagination?.totalPages || 1)
       } else {
-        // Fallback to mock data for demo
-        setMockProfiles()
+        // Show empty state instead of mock data
+        setProfiles([])
+        setTotalPages(1)
+        if (response.error) {
+          toast.error(response.error)
+        }
       }
     } catch (error) {
       toast.error('Failed to load profiles')
-      // Fallback to mock data for demo
-      setMockProfiles()
+      // Show empty state instead of mock data
+      setProfiles([])
+      setTotalPages(1)
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const setMockProfiles = () => {
-    const mockProfiles: Profile[] = [
-      {
-        id: '1',
-        user_id: 'user1',
-        role: 'freelancer',
-        bio: 'Full-stack developer with 5+ years experience building scalable web applications using React, Node.js, and cloud technologies.',
-        hourly_rate: 45,
-        experience_level: 'senior',
-        rating: 4.9,
-        reviews_count: 47,
-        completed_projects: 89,
-        verified: true,
-        online_status: 'online',
-        country: 'south_africa',
-        created_at: '2023-01-15',
-        updated_at: '2024-01-15',
-        user: {
-          name: 'Sarah Johnson',
-          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah',
-        }
-      },
-      {
-        id: '2',
-        user_id: 'user2',
-        role: 'freelancer',
-        bio: 'Creative UI/UX designer specializing in mobile apps and SaaS platforms. I create user-centered designs that drive engagement.',
-        hourly_rate: 35,
-        experience_level: 'mid',
-        rating: 4.8,
-        reviews_count: 32,
-        completed_projects: 56,
-        verified: true,
-        online_status: 'offline',
-        country: 'zimbabwe',
-        created_at: '2023-03-20',
-        updated_at: '2024-01-10',
-        user: {
-          name: 'Michael Ndlovu',
-          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael',
-        }
-      },
-      {
-        id: '3',
-        user_id: 'user3',
-        role: 'freelancer',
-        bio: 'Data scientist and ML engineer with expertise in predictive analytics, NLP, and computer vision. PhD in Statistics.',
-        hourly_rate: 65,
-        experience_level: 'expert',
-        rating: 5.0,
-        reviews_count: 28,
-        completed_projects: 34,
-        verified: true,
-        online_status: 'online',
-        country: 'botswana',
-        created_at: '2023-02-10',
-        updated_at: '2024-01-12',
-        user: {
-          name: 'Amina Hassan',
-          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=amina',
-        }
-      },
-      {
-        id: '4',
-        user_id: 'user4',
-        role: 'freelancer',
-        bio: 'Digital marketing specialist helping businesses grow their online presence through SEO, content marketing, and social media.',
-        hourly_rate: 30,
-        experience_level: 'mid',
-        rating: 4.7,
-        reviews_count: 65,
-        completed_projects: 78,
-        verified: false,
-        online_status: 'online',
-        country: 'south_africa',
-        created_at: '2023-04-05',
-        updated_at: '2024-01-08',
-        user: {
-          name: 'David Kgomo',
-          avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=david',
-        }
-      },
-    ]
-    setProfiles(mockProfiles)
-    setTotalPages(1)
   }
 
   const filteredProfiles = profiles.filter(profile => {

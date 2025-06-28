@@ -150,93 +150,10 @@ export const Dashboard = () => {
 
     } catch (error) {
       toast.error('Failed to load dashboard data')
-      // Fallback to mock data for demo
-      setFallbackData()
+      // Don't fall back to mock data - show empty states instead
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const setFallbackData = () => {
-    setStats({
-      client: {
-        active_opportunities: 3,
-        total_proposals: 24,
-        total_spent: 5670,
-        active_projects: 2,
-      },
-      freelancer: {
-        active_proposals: 5,
-        won_projects: 12,
-        total_earned: 8930,
-        client_rating: 4.8,
-      }
-    })
-
-    setRecentActivity([
-      {
-        id: '1',
-        type: 'proposal_received',
-        title: 'New proposal on "E-commerce Website Development"',
-        description: 'Sarah J. submitted a proposal',
-        timestamp: '2 hours ago',
-        read: false,
-      },
-      {
-        id: '2',
-        type: 'project_completed',
-        title: 'Project completed successfully',
-        description: 'Mobile App UI/UX Design project finished',
-        timestamp: '1 day ago',
-        read: true,
-      },
-      {
-        id: '3',
-        type: 'message_received',
-        title: 'New message from client',
-        description: 'David K. sent you a message about the project',
-        timestamp: '2 days ago',
-        read: true,
-      },
-    ])
-
-    setOpportunities([
-      {
-        id: '1',
-        title: 'React Dashboard Development',
-        status: 'active',
-        proposals_count: 8,
-        budget: '$2000-$4000',
-        posted_at: '2024-01-15',
-      },
-      {
-        id: '2',
-        title: 'Brand Identity Design',
-        status: 'closed',
-        proposals_count: 15,
-        budget: '$800-$1500',
-        posted_at: '2024-01-10',
-      },
-    ])
-
-    setProposals([
-      {
-        id: '1',
-        opportunity_title: 'E-commerce Platform',
-        status: 'pending',
-        submitted_at: '2024-01-16',
-        client_name: 'Tech Solutions Ltd',
-        budget: '$3000',
-      },
-      {
-        id: '2',
-        opportunity_title: 'Mobile App Development',
-        status: 'accepted',
-        submitted_at: '2024-01-12',
-        client_name: 'StartupCo',
-        budget: '$5000',
-      },
-    ])
   }
   
   if (!user) {

@@ -75,54 +75,22 @@ export const ClientOpportunities = () => {
     if (!user?.id) return
 
     try {
-      // For demo purposes, create mock opportunities
-      const mockOpportunities: Opportunity[] = [
-        {
-          id: '1',
-          title: 'E-commerce Website Development',
-          description: 'Looking for a skilled developer to build a modern e-commerce platform with React and Node.js.',
-          budget_min: 2000,
-          budget_max: 5000,
-          category: 'web_development',
-          type: 'premium',
-          status: 'active',
-          proposals_count: 8,
-          posted_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: '2',
-          title: 'Brand Identity Design',
-          description: 'Need a creative designer to create a complete brand identity including logo, color palette, and guidelines.',
-          budget_min: 800,
-          budget_max: 1500,
-          category: 'design',
-          type: 'standard',
-          status: 'in_progress',
-          proposals_count: 12,
-          posted_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-        {
-          id: '3',
-          title: 'Mobile App UI/UX Design',
-          description: 'Seeking a UI/UX designer to create user interface designs for a fintech mobile application.',
-          budget_min: 1200,
-          budget_max: 2500,
-          category: 'design',
-          type: 'premium',
-          status: 'closed',
-          proposals_count: 15,
-          posted_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        },
-      ]
-      setOpportunities(mockOpportunities)
+      const response = await apiService.getOpportunities({ 
+        client_id: user.id,
+        status: 'active'
+      })
+      
+      if (response.success && response.data) {
+        setOpportunities(response.data)
+      } else {
+        setOpportunities([])
+        if (response.error) {
+          toast.error(response.error)
+        }
+      }
     } catch (error) {
       toast.error('Failed to load opportunities')
+      setOpportunities([])
     }
   }
 
@@ -130,69 +98,19 @@ export const ClientOpportunities = () => {
     if (!user?.id) return
 
     try {
-      // For demo purposes, create mock proposals
-      const mockProposals: Proposal[] = [
-        {
-          id: '1',
-          opportunity_id: '1',
-          freelancer_id: 'freelancer1',
-          client_id: user.id,
-          budget: 3500,
-          delivery_time: 30,
-          message: 'I have extensive experience in building e-commerce platforms. I can deliver a high-quality solution within your budget and timeline.',
-          status: 'pending',
-          submitted_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          freelancer: {
-            name: 'Sarah Johnson',
-            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=sarah',
-            rating: 4.9,
-            country: 'south_africa',
-          }
-        },
-        {
-          id: '2',
-          opportunity_id: '1',
-          freelancer_id: 'freelancer2',
-          client_id: user.id,
-          budget: 4200,
-          delivery_time: 25,
-          message: 'I specialize in React and Node.js development with 5+ years of experience. I can create a scalable e-commerce solution.',
-          status: 'accepted',
-          submitted_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-          freelancer: {
-            name: 'Michael Ndlovu',
-            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=michael',
-            rating: 4.8,
-            country: 'zimbabwe',
-          }
-        },
-        {
-          id: '3',
-          opportunity_id: '2',
-          freelancer_id: 'freelancer3',
-          client_id: user.id,
-          budget: 1200,
-          delivery_time: 14,
-          message: 'I am a creative designer with expertise in brand identity design. I can create a unique and memorable brand for your business.',
-          status: 'pending',
-          submitted_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-          freelancer: {
-            name: 'Amina Hassan',
-            avatar_url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=amina',
-            rating: 5.0,
-            country: 'botswana',
-          }
-        },
-      ]
-      setProposals(mockProposals)
+      const response = await apiService.getUserProposals(user.id)
+      
+      if (response.success && response.data) {
+        setProposals(response.data)
+      } else {
+        setProposals([])
+        if (response.error) {
+          toast.error(response.error)
+        }
+      }
     } catch (error) {
       toast.error('Failed to load proposals')
+      setProposals([])
     } finally {
       setIsLoading(false)
     }
