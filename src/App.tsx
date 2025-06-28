@@ -23,6 +23,8 @@ import { Contact } from "@/pages/Contact";
 import { Chat } from "@/pages/Chat";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import NotFound from "./pages/NotFound";
+import { Terms } from "@/pages/Terms";
+import { Privacy } from "@/pages/Privacy";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +69,10 @@ const App = () => (
                 <AdminDashboard />
               </AdminRoute>
             } />
+            
+            {/* New routes */}
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
