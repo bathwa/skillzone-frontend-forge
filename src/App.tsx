@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,8 +17,8 @@ import { MyProfile } from "@/pages/MyProfile";
 import { Notifications } from "@/pages/Notifications";
 import { MyTokens } from "@/pages/MyTokens";
 import { ClientOpportunities } from "@/pages/ClientOpportunities";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import NotFound from "./pages/NotFound";
+import { AdminDashboard } from "@/pages/admin/AdminDashboard";
+import { NotFound } from "./pages/NotFound";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,9 +46,9 @@ const App = () => (
               <Route path="notifications" element={<Notifications />} />
               <Route path="my-tokens" element={<MyTokens />} />
               <Route path="client/opportunities" element={<ClientOpportunities />} />
-              <Route path="sp/proposals" element={<div className="container py-8"><h1>My Proposals - Coming Soon</h1></div>} />
-              <Route path="about" element={<div className="container py-8"><h1>About Us - Coming Soon</h1></div>} />
-              <Route path="contact" element={<div className="container py-8"><h1>Contact Us - Coming Soon</h1></div>} />
+              <Route path="sp/proposals" element={<div className="container py-8"><h1 className="text-2xl font-bold mb-4">My Proposals</h1><p className="text-muted-foreground">Feature coming soon - track and manage your submitted proposals here.</p></div>} />
+              <Route path="about" element={<div className="container py-8"><h1 className="text-2xl font-bold mb-4">About SkillZone</h1><p className="text-muted-foreground">Learn more about Africa's premier freelance marketplace connecting talent across the SADC region.</p></div>} />
+              <Route path="contact" element={<div className="container py-8"><h1 className="text-2xl font-bold mb-4">Contact Us</h1><p className="text-muted-foreground">Get in touch with our support team for assistance with your SkillZone experience.</p></div>} />
             </Route>
             
             {/* Auth routes (no layout) */}

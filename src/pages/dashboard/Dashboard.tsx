@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +16,6 @@ import {
   TrendingUp, 
   MessageSquare, 
   Bell,
-  Plus,
   Eye,
   Clock,
   DollarSign,
@@ -109,10 +109,10 @@ export const Dashboard = () => {
         if (proposalsResponse.success && proposalsResponse.data) {
           setProposals(proposalsResponse.data.slice(0, 5).map(prop => ({
             id: prop.id,
-            opportunity_title: 'Opportunity Title', // Would need to fetch opportunity details
+            opportunity_title: 'Opportunity Title',
             status: prop.status,
             submitted_at: prop.submitted_at,
-            client_name: 'Client Name', // Would need to fetch client details
+            client_name: 'Client Name',
             budget: `$${prop.budget}`
           })))
         }
@@ -136,21 +136,20 @@ export const Dashboard = () => {
         client: {
           active_opportunities: opportunities.length,
           total_proposals: opportunities.reduce((sum, opp) => sum + opp.proposals_count, 0),
-          total_spent: 0, // Would need to calculate from completed projects
+          total_spent: 0,
           active_projects: opportunities.filter(opp => opp.status === 'in_progress').length,
         },
         freelancer: {
           active_proposals: proposals.filter(prop => prop.status === 'pending').length,
           won_projects: proposals.filter(prop => prop.status === 'accepted').length,
-          total_earned: 0, // Would need to calculate from completed projects
-          client_rating: 4.8, // Would need to fetch from user profile
+          total_earned: 0,
+          client_rating: 4.8,
         }
       }
       setStats(calculatedStats)
 
     } catch (error) {
       toast.error('Failed to load dashboard data')
-      // Don't fall back to mock data - show empty states instead
     } finally {
       setIsLoading(false)
     }
@@ -236,7 +235,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{clientStats?.active_opportunities || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +2 from last week
+                      Opportunities posted
                     </p>
                   </CardContent>
                 </Card>
@@ -248,7 +247,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{clientStats?.total_proposals || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +12 from last week
+                      Proposals received
                     </p>
                   </CardContent>
                 </Card>
@@ -260,7 +259,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">${clientStats?.total_spent?.toLocaleString() || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +$1,200 from last month
+                      Project investments
                     </p>
                   </CardContent>
                 </Card>
@@ -272,7 +271,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{clientStats?.active_projects || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +1 from last week
+                      Projects in progress
                     </p>
                   </CardContent>
                 </Card>
@@ -287,7 +286,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{freelancerStats?.active_proposals || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +3 from last week
+                      Pending proposals
                     </p>
                   </CardContent>
                 </Card>
@@ -299,7 +298,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{freelancerStats?.won_projects || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +2 from last month
+                      Successful projects
                     </p>
                   </CardContent>
                 </Card>
@@ -311,7 +310,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">${freelancerStats?.total_earned?.toLocaleString() || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +$2,400 from last month
+                      Total earnings
                     </p>
                   </CardContent>
                 </Card>
@@ -323,7 +322,7 @@ export const Dashboard = () => {
                   <CardContent>
                     <div className="text-2xl font-bold">{freelancerStats?.client_rating || 0}</div>
                     <p className="text-xs text-muted-foreground">
-                      +0.2 from last month
+                      Average rating
                     </p>
                   </CardContent>
                 </Card>
@@ -350,40 +349,48 @@ export const Dashboard = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-4 p-4 border rounded-lg">
-                    <div className="flex-shrink-0">
-                      {activity.type === 'proposal_received' && (
-                        <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Users className="h-4 w-4 text-blue-600" />
-                        </div>
-                      )}
-                      {activity.type === 'project_completed' && (
-                        <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                          <Star className="h-4 w-4 text-green-600" />
-                        </div>
-                      )}
-                      {activity.type === 'message_received' && (
-                        <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
-                          <MessageSquare className="h-4 w-4 text-purple-600" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-sm font-medium">{activity.title}</h4>
-                      <p className="text-sm text-muted-foreground">{activity.description}</p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
-                        {!activity.read && (
-                          <Badge variant="secondary" className="text-xs">New</Badge>
+              {recentActivity.length > 0 ? (
+                <div className="space-y-4">
+                  {recentActivity.map((activity) => (
+                    <div key={activity.id} className="flex items-start space-x-4 p-4 border rounded-lg">
+                      <div className="flex-shrink-0">
+                        {activity.type === 'proposal_received' && (
+                          <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Users className="h-4 w-4 text-blue-600" />
+                          </div>
+                        )}
+                        {activity.type === 'project_completed' && (
+                          <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
+                            <Star className="h-4 w-4 text-green-600" />
+                          </div>
+                        )}
+                        {activity.type === 'message_received' && (
+                          <div className="h-8 w-8 bg-purple-100 rounded-full flex items-center justify-center">
+                            <MessageSquare className="h-4 w-4 text-purple-600" />
+                          </div>
                         )}
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium">{activity.title}</h4>
+                        <p className="text-sm text-muted-foreground">{activity.description}</p>
+                        <div className="flex items-center space-x-2 mt-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">{activity.timestamp}</span>
+                          {!activity.read && (
+                            <Badge variant="secondary" className="text-xs">New</Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Bell className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p>No recent activity yet</p>
+                  <p className="text-sm">Start {isClient ? 'posting opportunities' : 'applying to opportunities'} to see updates here</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -405,57 +412,81 @@ export const Dashboard = () => {
                 {isClient && (
                   <Button asChild>
                     <Link to="/client/opportunities">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Post New
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      Manage Opportunities
                     </Link>
                   </Button>
                 )}
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {isClient ? (
-                  opportunities.map((opportunity) => (
-                    <div key={opportunity.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{opportunity.title}</h4>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                          <span>{opportunity.proposals_count} proposals</span>
-                          <span>Budget: {opportunity.budget}</span>
-                          <Badge variant={opportunity.status === 'active' ? 'default' : 'secondary'}>
-                            {opportunity.status}
-                          </Badge>
+              {isClient ? (
+                opportunities.length > 0 ? (
+                  <div className="space-y-4">
+                    {opportunities.map((opportunity) => (
+                      <div key={opportunity.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{opportunity.title}</h4>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                            <span>{opportunity.proposals_count} proposals</span>
+                            <span>Budget: {opportunity.budget}</span>
+                            <Badge variant={opportunity.status === 'active' ? 'default' : 'secondary'}>
+                              {opportunity.status}
+                            </Badge>
+                          </div>
                         </div>
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to={`/opportunity/${opportunity.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/opportunity/${opportunity.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  proposals.map((proposal) => (
-                    <div key={proposal.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <h4 className="font-medium">{proposal.opportunity_title}</h4>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                          <span>Client: {proposal.client_name}</span>
-                          <span>Budget: {proposal.budget}</span>
-                          <Badge variant={proposal.status === 'accepted' ? 'default' : 'secondary'}>
-                            {proposal.status}
-                          </Badge>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Briefcase className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No opportunities posted yet</p>
+                    <p className="text-sm mb-4">Post your first opportunity to find skilled professionals</p>
+                    <Button asChild>
+                      <Link to="/client/opportunities">Post Opportunity</Link>
+                    </Button>
+                  </div>
+                )
+              ) : (
+                proposals.length > 0 ? (
+                  <div className="space-y-4">
+                    {proposals.map((proposal) => (
+                      <div key={proposal.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex-1">
+                          <h4 className="font-medium">{proposal.opportunity_title}</h4>
+                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                            <span>Client: {proposal.client_name}</span>
+                            <span>Budget: {proposal.budget}</span>
+                            <Badge variant={proposal.status === 'accepted' ? 'default' : 'secondary'}>
+                              {proposal.status}
+                            </Badge>
+                          </div>
                         </div>
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link to={`/proposal/${proposal.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link to={`/proposal/${proposal.id}`}>
-                          <Eye className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </div>
-                  ))
-                )}
-              </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Briefcase className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                    <p>No proposals submitted yet</p>
+                    <p className="text-sm mb-4">Browse opportunities and submit your first proposal</p>
+                    <Button asChild>
+                      <Link to="/opportunities">Browse Opportunities</Link>
+                    </Button>
+                  </div>
+                )
+              )}
             </CardContent>
           </Card>
         </div>
@@ -471,15 +502,15 @@ export const Dashboard = () => {
               {isClient ? (
                 <>
                   <Button className="w-full" asChild>
-                    <Link to="/opportunities/new">
-                      <Plus className="mr-2 h-4 w-4" />
-                      Post Opportunity
+                    <Link to="/client/opportunities">
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      Manage Opportunities
                     </Link>
                   </Button>
                   <Button variant="outline" className="w-full" asChild>
-                    <Link to="/client/opportunities">
-                      <Briefcase className="mr-2 h-4 w-4" />
-                      My Opportunities
+                    <Link to="/opportunities">
+                      <Eye className="mr-2 h-4 w-4" />
+                      Browse All Opportunities
                     </Link>
                   </Button>
                 </>
