@@ -81,8 +81,8 @@ export const ClientOpportunities = () => {
         status: 'open'
       })
       
-      if (response.success && response.data) {
-        const mappedOpportunities = response.data.map(opp => ({
+      if (Array.isArray(response)) {
+        const mappedOpportunities = response.map(opp => ({
           id: opp.id,
           title: opp.title,
           description: opp.description,
@@ -127,7 +127,7 @@ export const ClientOpportunities = () => {
           message: proposal.cover_letter,
           status: proposal.status === 'pending' || proposal.status === 'accepted' || proposal.status === 'rejected' 
                  ? proposal.status as 'pending' | 'accepted' | 'rejected'
-                 : 'rejected' as const,
+                 : 'pending' as const,
           submitted_at: proposal.created_at,
           created_at: proposal.created_at,
           updated_at: proposal.updated_at,

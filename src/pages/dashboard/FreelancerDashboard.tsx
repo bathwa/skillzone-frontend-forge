@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -87,7 +86,7 @@ export default function FreelancerDashboard() {
         setStats({
           appliedJobs: 12,
           activeProposals: 8,
-          completedProjects: user.completed_projects || 0,
+          completedProjects: user.total_jobs_completed || 0,
           totalEarnings: user.total_earnings || 0
         })
       }
