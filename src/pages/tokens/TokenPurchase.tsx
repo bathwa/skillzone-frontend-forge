@@ -1,68 +1,125 @@
+
 import React, { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { useTokenCost, useCreateTokenPurchase } from '@/hooks/useTokens'
-import { TOKEN_PRICING } from '@/lib/constants'
-import { CreditCard, DollarSign, Shield, Clock } from 'lucide-react'
-import { toast } from '@/components/ui/use-toast'
-import { useAuthStore } from '@/store/auth'
-import { tokenService } from '@/services/token'
-import { EscrowPaymentDetails } from '@/types/token'
-import { Label } from '@/components/ui/label'
+import { useAuthStore } from '@/stores/authStore'
+import { tokenService } from '@/lib/services/tokenService'
+import { toast } from '@/hooks/use-toast'
+import { 
+  CreditCard, 
+  Zap, 
+  Star, 
+  Crown,
+  CheckCircle,
+  Loader2
+} from 'lucide-react'
 
-type PackageType = keyof typeof TOKEN_PRICING
+interface TokenPackage {
+  id: string
+  name: string
+  tokens: number
+  price_usd: number
+  description: string
+  popular?: boolean
+  bonus?: number
+}
 
-export default function TokenPurchase() {
+const tokenPackages: TokenPackage[] = [
+  {
+    id: 'starter',
+    name: 'Starter Pack',
+    tokens: 10,
+    price_usd: 9.99,
+    description: 'Perfect for trying out the platform'
+  },
+  {
+    id: 'professional',
+    name: 'Professional Pack',
+    tokens: 50,
+    price_usd: 39.99,
+    description: 'Great for regular users',
+    popular: true,
+    bonus: 5
+  },
+  {
+    id: 'premium',
+    name: 'Premium Pack',
+    tokens: 100,
+    price_usd: 69.99,
+    description: 'Best value for power users',
+    bonus: 15
+  },
+  {
+    id: 'enterprise',
+    name: 'Enterprise Pack',
+    tokens: 250,
+    price_usd: 149.99,
+    description: 'For businesses and agencies',
+    bonus: 50
+  }
+]
+
+export const TokenPurchase = () => {
   const { user } = useAuthStore()
-  const [selectedPackage, setSelectedPackage] = useState<string>('')
-  const [paymentMethod, setPaymentMethod] = useState<'escrow' | 'payfast' | 'paystack'>('escrow')
-  const [isLoading, setIsLoading] = useState(false)
-  const [escrowDetails, setEscrowDetails] = useState<EscrowPaymentDetails | null>(null)
+  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
 
-  const tokenPackages = tokenService.getAllTokenPackages()
+  const handlePurchase = async (tokenPackage: TokenPackage) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "Please log in to purchase tokens",
+        variant: "destructive",
+      })
+      return
+    }
 
-  const handlePurchase = async () => {
-    if (!selectedPackage || !user) return
+    setIsProcessing(true)
+    setSelectedPackage(tokenPackage)
 
-    setIsLoading(true)
     try {
-      const result = await tokenService.createTokenPurchase({
-        packageType: selectedPackage as keyof typeof TOKEN_PRICING,
-        paymentMethod,
+      const response = await tokenService.purchaseTokens({
+        userId: user.id,
+        packageId: tokenPackage.id,
+        tokens: tokenPackage.tokens,
+        amount: tokenPackage.price_usd
       })
 
-      if (result.success) {
-        if (result.escrowDetails) {
-          setEscrowDetails(result.escrowDetails)
-        }
+      if (response.success) {
         toast({
-          title: "Purchase Initiated",
-          description: "Your token purchase has been initiated successfully.",
+          title: "Success",
+          description: `Successfully purchased ${tokenPackage.tokens} tokens!`,
         })
       } else {
         toast({
-          title: "Purchase Failed",
-          description: result.error || "Failed to initiate token purchase",
+          title: "Error",
+          description: response.error || 'Failed to purchase tokens',
           variant: "destructive",
         })
       }
     } catch (error) {
-      console.error('Token purchase error:', error)
       toast({
         title: "Error",
-        description: "An unexpected error occurred",
+        description: 'An error occurred during purchase',
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsProcessing(false)
+      setSelectedPackage(null)
     }
+  }
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(price)
   }
 
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Please log in to purchase tokens</h1>
         </div>
@@ -71,177 +128,167 @@ export default function TokenPurchase() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Purchase Tokens</h1>
-          <p className="text-muted-foreground">
-            Choose a token package to enhance your FreelanceHub experience
+    <div className="container py-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold">Purchase Tokens</h1>
+          <p className="text-xl text-muted-foreground">
+            Choose the perfect token package for your needs
           </p>
+          <div className="flex items-center justify-center space-x-2 text-lg">
+            <Zap className="h-5 w-5 text-yellow-500" />
+            <span>Current Balance: <strong>{user.tokens || 0} tokens</strong></span>
+          </div>
         </div>
 
         {/* Token Packages */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {tokenPackages.map((pkg) => (
             <Card 
               key={pkg.id} 
-              className={`cursor-pointer transition-all ${
-                selectedPackage === pkg.id ? 'ring-2 ring-primary' : ''
+              className={`relative hover:shadow-lg transition-shadow ${
+                pkg.popular ? 'border-primary shadow-lg' : ''
               }`}
-              onClick={() => setSelectedPackage(pkg.id)}
             >
-              <CardHeader className="text-center">
-                <CardTitle className="text-lg">{pkg.description}</CardTitle>
-                <div className="text-2xl font-bold text-primary">
-                  {pkg.tokens} Tokens
+              {pkg.popular && (
+                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <Badge className="bg-primary text-primary-foreground px-3 py-1">
+                    <Star className="h-3 w-3 mr-1" />
+                    Most Popular
+                  </Badge>
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  ${pkg.price_usd.toFixed(2)}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center">
-                  <div className="text-sm text-muted-foreground mb-2">
-                    ${(pkg.price_usd / pkg.tokens).toFixed(3)} per token
-                  </div>
-                  {selectedPackage === pkg.id && (
-                    <Badge className="w-full">Selected</Badge>
+              )}
+
+              <CardHeader className="text-center pb-2">
+                <div className="mb-4">
+                  {pkg.id === 'enterprise' ? (
+                    <Crown className="h-12 w-12 mx-auto text-yellow-500" />
+                  ) : (
+                    <Zap className="h-12 w-12 mx-auto text-blue-500" />
                   )}
                 </div>
+                <CardTitle className="text-xl">{pkg.name}</CardTitle>
+                <div className="text-3xl font-bold text-primary">
+                  {formatPrice(pkg.price_usd)}
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold">{pkg.tokens} Tokens</div>
+                  {pkg.bonus && (
+                    <div className="text-sm text-green-600 font-medium">
+                      + {pkg.bonus} bonus tokens!
+                    </div>
+                  )}
+                </div>
+
+                <CardDescription className="text-center">
+                  {pkg.description}
+                </CardDescription>
+
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>Submit proposals to opportunities</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>Access premium features</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>Priority support</span>
+                  </div>
+                </div>
+
+                <Button 
+                  className="w-full" 
+                  onClick={() => handlePurchase(pkg)}
+                  disabled={isProcessing && selectedPackage?.id === pkg.id}
+                  variant={pkg.popular ? 'default' : 'outline'}
+                >
+                  {isProcessing && selectedPackage?.id === pkg.id ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Purchase Now
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Payment Method Selection */}
-        {selectedPackage && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Payment Method</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="escrow"
-                    name="paymentMethod"
-                    value="escrow"
-                    checked={paymentMethod === 'escrow'}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  />
-                  <Label htmlFor="escrow">Bank Transfer (Escrow)</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="payfast"
-                    name="paymentMethod"
-                    value="payfast"
-                    checked={paymentMethod === 'payfast'}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    disabled
-                  />
-                  <Label htmlFor="payfast" className="text-muted-foreground">
-                    PayFast (Coming Soon)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="radio"
-                    id="paystack"
-                    name="paymentMethod"
-                    value="paystack"
-                    checked={paymentMethod === 'paystack'}
-                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                    disabled
-                  />
-                  <Label htmlFor="paystack" className="text-muted-foreground">
-                    Paystack (Coming Soon)
-                  </Label>
-                </div>
+        {/* Features Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-center">What You Get With Tokens</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center space-y-2">
+                <Briefcase className="h-8 w-8 mx-auto text-blue-500" />
+                <h3 className="font-semibold">Submit Proposals</h3>
+                <p className="text-sm text-muted-foreground">
+                  Use tokens to submit proposals to client opportunities
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Purchase Summary */}
-        {selectedPackage && (
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle>Purchase Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                const pkg = tokenPackages.find(p => p.id === selectedPackage)
-                const totalCost = pkg ? tokenService.calculateTotalCost(selectedPackage as keyof typeof TOKEN_PRICING) : 0
-                const fee = pkg ? totalCost - pkg.price_usd : 0
-                
-                return (
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Package:</span>
-                      <span>{pkg?.description}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Tokens:</span>
-                      <span>{pkg?.tokens}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Base Price:</span>
-                      <span>${pkg?.price_usd.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Processing Fee:</span>
-                      <span>${fee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold text-lg">
-                      <span>Total:</span>
-                      <span>${totalCost.toFixed(2)}</span>
-                    </div>
-                  </div>
-                )
-              })()}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Purchase Button */}
-        {selectedPackage && (
-          <div className="text-center">
-            <Button 
-              onClick={handlePurchase} 
-              disabled={isLoading}
-              size="lg"
-              className="w-full md:w-auto"
-            >
-              {isLoading ? 'Processing...' : 'Purchase Tokens'}
-            </Button>
-          </div>
-        )}
-
-        {/* Escrow Payment Details */}
-        {escrowDetails && (
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Payment Instructions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="bg-muted p-4 rounded-lg">
-                  <pre className="text-sm whitespace-pre-wrap">
-                    {escrowDetails.instructions}
-                  </pre>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  <p>Reference: <strong>{escrowDetails.reference}</strong></p>
-                  <p>Amount: <strong>R{escrowDetails.amount.toFixed(2)}</strong></p>
-                </div>
+              <div className="text-center space-y-2">
+                <Star className="h-8 w-8 mx-auto text-yellow-500" />
+                <h3 className="font-semibold">Premium Features</h3>
+                <p className="text-sm text-muted-foreground">
+                  Access advanced search, priority listing, and more
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="text-center space-y-2">
+                <Crown className="h-8 w-8 mx-auto text-purple-500" />
+                <h3 className="font-semibold">Priority Support</h3>
+                <p className="text-sm text-muted-foreground">
+                  Get faster response times and dedicated assistance
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* FAQ Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Frequently Asked Questions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <h4 className="font-semibold mb-2">How do tokens work?</h4>
+              <p className="text-sm text-muted-foreground">
+                Tokens are used to perform actions on the platform like submitting proposals, 
+                accessing premium features, and more. Each action costs a certain number of tokens.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">Do tokens expire?</h4>
+              <p className="text-sm text-muted-foreground">
+                No, tokens never expire. Once purchased, they remain in your account until used.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-2">Can I get a refund?</h4>
+              <p className="text-sm text-muted-foreground">
+                Token purchases are generally non-refundable, but we'll consider refunds on a 
+                case-by-case basis for unused tokens within 30 days of purchase.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
 }
+
+export default TokenPurchase

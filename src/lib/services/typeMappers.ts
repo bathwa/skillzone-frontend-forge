@@ -1,3 +1,4 @@
+
 import type { Database } from '@/integrations/supabase/types'
 
 // Database types
@@ -68,7 +69,7 @@ export interface Proposal {
   updated_at: string
   freelancer?: {
     name: string
-    avatar_url: string
+    avatar_url?: string
     rating: number
     country: Database['public']['Enums']['country_code']
   }

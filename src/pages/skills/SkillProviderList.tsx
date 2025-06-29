@@ -87,7 +87,31 @@ export const SkillProviderList = () => {
       const response = await apiService.getProfiles(filters)
       
       if (response.success && response.data) {
-        setProfiles(response.data)
+        // Map UserProfile[] to Profile[]
+        const mappedProfiles: Profile[] = response.data.map(userProfile => ({
+          id: userProfile.id,
+          user_id: userProfile.user_id,
+          role: userProfile.role as 'freelancer' | 'client',
+          bio: userProfile.bio,
+          hourly_rate: userProfile.hourly_rate,
+          experience_level: userProfile.experience_level === 'beginner' ? 'junior' : 
+                          userProfile.experience_level === 'intermediate' ? 'mid' :
+                          userProfile.experience_level === 'expert' ? 'expert' : 'senior',
+          rating: userProfile.rating || 0,
+          reviews_count: userProfile.reviews_count || 0,
+          completed_projects: userProfile.completed_projects || 0,
+          verified: userProfile.verified || false,
+          online_status: userProfile.online_status || 'offline',
+          country: userProfile.country,
+          created_at: userProfile.created_at,
+          updated_at: userProfile.updated_at,
+          user: {
+            name: userProfile.name,
+            avatar_url: userProfile.avatar_url
+          }
+        }))
+        
+        setProfiles(mappedProfiles)
         setTotalPages(response.pagination?.totalPages || 1)
       } else {
         // Show empty state instead of mock data
@@ -348,7 +372,7 @@ export const SkillProviderList = () => {
 
                         {/* Bio */}
                         <p className="text-sm text-muted-foreground line-clamp-3">
-                          {profile.bio}
+                          {profile.bio || 'No bio available'}
                         </p>
 
                         {/* Stats */}

@@ -79,7 +79,6 @@ export default function Dashboard() {
       // Load opportunities
       const opportunitiesResponse = await opportunityService.getOpportunities({
         category: '',
-        country: user.country,
         search: '',
         type: 'standard',
         sort: 'newest',
@@ -103,11 +102,12 @@ export default function Dashboard() {
         const proposals = proposalsResponse.data
         const mappedProposals = proposals.map(proposal => ({
           id: proposal.id,
-          opportunity_title: proposal.opportunity?.title || 'Unknown',
-          status: proposal.status === 'withdrawn' ? 'rejected' : proposal.status as 'pending' | 'accepted' | 'rejected',
+          opportunity_title: 'Project', // Would need to fetch from opportunity
+          status: proposal.status === 'withdrawn' ? 'rejected' as const : 
+                 proposal.status as 'pending' | 'accepted' | 'rejected',
           submitted_at: proposal.created_at,
           client_name: 'Client', // Would need to fetch from opportunity
-          budget: `$${proposal.budget}`
+          budget: `$${proposal.proposed_budget || proposal.budget || 0}`
         }))
         setRecentProposals(mappedProposals)
         
@@ -282,7 +282,7 @@ export default function Dashboard() {
                   <MessageSquare className="h-5 w-5" />
                   Your Recent Proposals
                 </CardTitle>
-                <Link to="/my-proposals">
+                <Link to="/sp/proposals">
                   <Button variant="outline" size="sm">View All</Button>
                 </Link>
               </CardHeader>
@@ -347,12 +347,12 @@ export default function Dashboard() {
                   <Link to="/opportunities">
                     <Button className="w-full">Browse Opportunities</Button>  
                   </Link>
-                  <Link to="/my-proposals">
+                  <Link to="/sp/proposals">
                     <Button variant="outline" className="w-full">View My Proposals</Button>
                   </Link>
                 </>
               )}
-              <Link to="/tokens/purchase">
+              <Link to="/my-tokens">
                 <Button variant="outline" className="w-full">Buy Tokens</Button>
               </Link>
             </CardContent>
