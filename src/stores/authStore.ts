@@ -1,3 +1,4 @@
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/integrations/supabase/client'
@@ -110,38 +111,11 @@ export const useAuthStore = create<AuthState>()(
                 isAuthenticated: true,
               })
             } else {
-              // Profile doesn't exist yet, try to get role from user metadata
-              const userRole = session.user.user_metadata?.role || 'freelancer'
-              const user = {
-                id: session.user.id,
-                email: session.user.email || '',
-                first_name: session.user.user_metadata?.first_name || '',
-                last_name: session.user.user_metadata?.last_name || '',
-                name: session.user.user_metadata?.name || 'Anonymous User',
-                role: userRole as 'client' | 'freelancer' | 'admin',
-                country: null,
-                tokens: 5,
-                tokens_balance: 5,
-                subscription_tier: 'basic' as const,
-                avatar_url: null,
-                bio: null,
-                city: null,
-                phone: null,
-                website: null,
-                hourly_rate: null,
-                total_earnings: 0,
-                total_jobs_completed: 0,
-                rating: 0,
-                rating_count: 0,
-                is_verified: false,
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              } as User
-
+              console.error('Profile fetch error:', error)
               set({
-                user,
-                session,
-                isAuthenticated: true,
+                user: null,
+                session: null,
+                isAuthenticated: false,
               })
             }
           } else {

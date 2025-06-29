@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -9,8 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
 import { apiService } from '@/lib/services/apiService'
@@ -139,7 +139,15 @@ export const SignUp = () => {
         console.log('Signup successful, user data:', response.data)
         login(response.data)
         toast.success('Account created successfully! Welcome to SkillZone!')
-        navigate('/dashboard')
+        
+        // Role-based routing after signup
+        if (response.data.role === 'client') {
+          navigate('/dashboard')
+        } else if (response.data.role === 'freelancer') {
+          navigate('/dashboard')
+        } else {
+          navigate('/dashboard')
+        }
       } else {
         console.error('Signup failed:', response.error)
         toast.error(response.error || 'Failed to create account. Please try again.')

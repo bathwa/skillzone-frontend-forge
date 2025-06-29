@@ -11,6 +11,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const { checkAuth } = useAuthStore()
 
   useEffect(() => {
+    // Check auth immediately on mount
+    checkAuth()
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {

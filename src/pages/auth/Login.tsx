@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -75,7 +76,15 @@ export const Login = () => {
         console.log('Login successful, user data:', response.data)
         login(response.data)
         toast.success('Welcome back to SkillZone!')
-        navigate('/dashboard')
+        
+        // Role-based routing
+        if (response.data.role === 'client') {
+          navigate('/dashboard')
+        } else if (response.data.role === 'freelancer') {
+          navigate('/dashboard')
+        } else {
+          navigate('/dashboard')
+        }
       } else {
         console.error('Login failed:', response.error)
         toast.error(response.error || 'Invalid email or password. Please try again.')

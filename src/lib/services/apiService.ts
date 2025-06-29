@@ -54,58 +54,25 @@ export interface User {
   last_name: string
   name: string
   role: 'client' | 'freelancer' | 'admin'
-  country: Database['public']['Enums']['country_code']
+  country: Database['public']['Enums']['country_code'] | null
   tokens_balance: number
   subscription_tier: 'basic' | 'pro' | 'premium'
-  avatar_url?: string
+  avatar_url?: string | null
+  bio?: string | null
+  city?: string | null
+  phone?: string | null
+  website?: string | null
+  hourly_rate?: number | null
+  total_earnings?: number
+  total_jobs_completed?: number
+  rating?: number
+  rating_count?: number
+  is_verified?: boolean
+  created_at?: string
+  updated_at?: string
 }
 
 class ApiService {
-  private baseUrl: string
-
-  constructor() {
-    this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:54321'
-  }
-
-  // Generic request method
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(session?.access_token && {
-            'Authorization': `Bearer ${session.access_token}`
-          }),
-          ...options.headers,
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-      return {
-        data: result.data || result,
-        error: null,
-        success: true,
-      }
-    } catch (error) {
-      console.error('API request failed:', error)
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-        success: false,
-      }
-    }
-  }
-
   // Authentication methods
   async login(email: string, password: string): Promise<ApiResponse<User>> {
     try {
@@ -149,60 +116,6 @@ class ApiService {
 
       if (profileError) {
         console.error('Profile fetch error:', profileError)
-        
-        // If profile doesn't exist, try to create one from user metadata
-        if (profileError.code === 'PGRST116') { // No rows returned
-          console.log('Profile not found, creating from user metadata...')
-          
-          const userMetadata = data.user.user_metadata || {}
-          const profileData = {
-            id: data.user.id,
-            email: data.user.email || email,
-            first_name: userMetadata.first_name || '',
-            last_name: userMetadata.last_name || '',
-            role: (userMetadata.role || 'freelancer') as Database['public']['Enums']['user_role'],
-            country: null,
-            tokens: 5,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }
-
-          console.log('Creating profile with data:', profileData)
-
-          const { error: createError } = await supabase
-            .from('profiles')
-            .insert([profileData])
-
-          if (createError) {
-            console.error('Profile creation error:', createError)
-            return {
-              data: null,
-              error: `Failed to create user profile: ${createError.message}`,
-              success: false,
-            }
-          }
-
-          // Return user data without profile mapping
-          const user: User = {
-            id: data.user.id,
-            email: data.user.email || email,
-            first_name: userMetadata.first_name || '',
-            last_name: userMetadata.last_name || '',
-            name: `${userMetadata.first_name || ''} ${userMetadata.last_name || ''}`.trim() || 'Anonymous User',
-            role: (userMetadata.role || 'freelancer') as 'client' | 'freelancer' | 'admin',
-            country: null,
-            tokens_balance: 5,
-            subscription_tier: 'basic',
-          }
-
-          console.log('Login successful with created profile:', user)
-          return {
-            data: user,
-            error: null,
-            success: true,
-          }
-        }
-
         return {
           data: null,
           error: 'Failed to load user profile',
@@ -219,47 +132,35 @@ class ApiService {
         }
       }
 
-      // Check if profile has a role, if not, update it with default role
-      if (!profile.role) {
-        console.log('Profile found but missing role, updating with default role...')
-        
-        const userMetadata = data.user.user_metadata || {}
-        const defaultRole = (userMetadata.role || 'freelancer') as Database['public']['Enums']['user_role']
-        
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({ 
-            role: defaultRole,
-            tokens: profile.tokens || 5,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', data.user.id)
-
-        if (updateError) {
-          console.error('Profile update error:', updateError)
-          // Continue with login even if update fails
-        } else {
-          console.log('Profile updated with role:', defaultRole)
-          profile.role = defaultRole
-        }
+      const user: User = {
+        id: profile.id,
+        email: profile.email,
+        first_name: profile.first_name || '',
+        last_name: profile.last_name || '',
+        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Anonymous User',
+        role: profile.role as 'client' | 'freelancer' | 'admin',
+        country: profile.country,
+        tokens_balance: profile.tokens || 0,
+        subscription_tier: 'basic',
+        avatar_url: profile.avatar_url,
+        bio: profile.bio,
+        city: profile.city,
+        phone: profile.phone,
+        website: profile.website,
+        hourly_rate: profile.hourly_rate,
+        total_earnings: profile.total_earnings || 0,
+        total_jobs_completed: profile.total_jobs_completed || 0,
+        rating: profile.rating || 0,
+        rating_count: profile.rating_count || 0,
+        is_verified: profile.is_verified || false,
+        created_at: profile.created_at,
+        updated_at: profile.updated_at,
       }
 
-      const userProfile = mapDbProfileToUserProfile(profile)
-      console.log('Mapped user profile:', userProfile)
+      console.log('Login successful, returning user:', user)
       
       return {
-        data: {
-          id: userProfile.id,
-          email: userProfile.email,
-          first_name: userProfile.first_name,
-          last_name: userProfile.last_name,
-          name: userProfile.name,
-          role: userProfile.role,
-          country: userProfile.country,
-          tokens_balance: userProfile.tokens_balance,
-          subscription_tier: userProfile.subscription_tier,
-          avatar_url: userProfile.avatar_url,
-        },
+        data: user,
         error: null,
         success: true,
       }
@@ -286,7 +187,8 @@ class ApiService {
             first_name: userData.first_name,
             last_name: userData.last_name,
             role: userData.role,
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`
         }
       })
 
@@ -320,9 +222,12 @@ class ApiService {
         }
       }
 
-      console.log('Auth user created, profile should be created by trigger for ID:', authData.user.id)
+      console.log('Auth user created, waiting for profile creation for ID:', authData.user.id)
 
-      // The trigger function creates a basic profile, so we need to update it with additional fields
+      // Wait a moment for the trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000))
+
+      // Update the profile with additional data
       const { error: updateError } = await supabase
         .from('profiles')
         .update({
@@ -334,7 +239,7 @@ class ApiService {
 
       if (updateError) {
         console.error('Profile update error:', updateError)
-        // Continue with signup even if update fails, as basic profile exists
+        // Continue with signup even if update fails, as basic profile should exist
       } else {
         console.log('Profile updated with additional fields')
       }
@@ -517,7 +422,6 @@ class ApiService {
       query = query.eq('type', filters.type)
     }
     if (filters?.status) {
-      // Map frontend status to database status
       const dbStatus = filters.status === 'active' ? 'open' : 
                       filters.status === 'closed' ? 'completed' : 'in_progress'
       query = query.eq('status', dbStatus)
@@ -560,7 +464,6 @@ class ApiService {
   }
 
   async createOpportunity(opportunityData: Omit<Opportunity, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Opportunity>> {
-    // Ensure all required fields are present
     const dbData = {
       title: opportunityData.title,
       description: opportunityData.description,
@@ -568,10 +471,10 @@ class ApiService {
       budget_max: opportunityData.budget_max,
       category: opportunityData.category,
       type: opportunityData.type,
-      status: 'open' as const, // Default status for new opportunities
+      status: 'open' as const,
       client_country: opportunityData.client_country,
       required_skills: opportunityData.skills,
-      client_id: '', // This should be set from the authenticated user
+      client_id: '',
     }
     
     const { data, error } = await supabase
@@ -839,7 +742,6 @@ class ApiService {
 
   async purchaseTokens(userId: string, amount: number, packageType: string): Promise<ApiResponse<TokenTransaction>> {
     try {
-      // Create transaction record
       const { data: transaction, error: transactionError } = await supabase
         .from('token_transactions')
         .insert([{
@@ -859,7 +761,6 @@ class ApiService {
         }
       }
 
-      // Update user token balance
       await this.updateUserTokenBalance(userId, amount)
 
       return {
@@ -901,32 +802,25 @@ class ApiService {
     pendingEscrow: number
   }>> {
     try {
-      // Get total users
       const { count: totalUsers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
 
-      // Get active freelancers
       const { count: activeFreelancers } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .eq('role', 'freelancer')
 
-      // Get active clients
       const { count: activeClients } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true })
         .eq('role', 'client')
 
-      // Get total transactions
       const { count: totalTransactions } = await supabase
         .from('token_transactions')
         .select('*', { count: 'exact', head: true })
 
-      // Calculate platform fees (10% of total transactions)
       const platformFees = (totalTransactions || 0) * 0.1
-
-      // Get pending escrow amount (accepted proposals)
       const { count: pendingEscrow } = await supabase
         .from('proposals')
         .select('*', { count: 'exact', head: true })
@@ -1217,4 +1111,4 @@ class ApiService {
 }
 
 // Export singleton instance
-export const apiService = new ApiService() 
+export const apiService = new ApiService()
