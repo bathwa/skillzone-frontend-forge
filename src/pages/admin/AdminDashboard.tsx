@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -86,13 +85,12 @@ export default function AdminDashboard() {
 
       // Load opportunities using existing API
       const opportunitiesResponse = await apiService.getOpportunities({
-        status: 'open',
         limit: 10
       })
 
       let mappedOpportunities: Opportunity[] = []
-      if (opportunitiesResponse.success && opportunitiesResponse.data) {
-        mappedOpportunities = opportunitiesResponse.data.map(opp => ({
+      if (Array.isArray(opportunitiesResponse)) {
+        mappedOpportunities = opportunitiesResponse.map(opp => ({
           id: opp.id,
           title: opp.title,
           budget_min: opp.budget_min,

@@ -90,8 +90,7 @@ export const ClientOpportunities = () => {
           budget_max: opp.budget_max,
           category: opp.category,
           type: opp.type,
-          status: opp.status === 'open' ? 'active' as const : 
-                 opp.status === 'in_progress' ? 'in_progress' as const : 'closed' as const,
+          status: opp.status,
           proposals_count: opp.proposals_count,
           posted_at: opp.created_at,
           created_at: opp.created_at,
@@ -124,18 +123,19 @@ export const ClientOpportunities = () => {
           client_id: user.id,
           budget: proposal.proposed_budget || proposal.budget || 0,
           delivery_time: proposal.estimated_duration || 0,
+          estimated_duration: proposal.estimated_duration || 0,
           message: proposal.cover_letter,
+          cover_letter: proposal.cover_letter,
           status: proposal.status === 'withdrawn' ? 'rejected' as const : 
                  proposal.status as 'pending' | 'accepted' | 'rejected',
           submitted_at: proposal.created_at,
           created_at: proposal.created_at,
           updated_at: proposal.updated_at,
           freelancer: {
-            id: proposal.freelancer_id,
             name: 'Freelancer', // Would need to fetch from profiles
             avatar_url: undefined,
             rating: 0,
-            country: 'south_africa'
+            country: 'south_africa' as const
           }
         }))
         setProposals(mappedProposals)

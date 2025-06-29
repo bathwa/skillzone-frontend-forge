@@ -1,120 +1,64 @@
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/authStore'
-import { tokenService } from '@/lib/services/tokenService'
-import { toast } from '@/hooks/use-toast'
+import { apiService } from '@/lib/services/apiService'
+import { TOKEN_PRICING, COUNTRY_CONFIGS } from '@/lib/constants'
+import { toast } from 'sonner'
 import { 
   CreditCard, 
-  Zap, 
-  Star, 
-  Crown,
-  CheckCircle,
-  Loader2
+  ArrowLeft, 
+  CheckCircle, 
+  Package,
+  DollarSign,
+  ArrowRight,
+  Star,
+  Shield,
+  Clock
 } from 'lucide-react'
-
-interface TokenPackage {
-  id: string
-  name: string
-  tokens: number
-  price_usd: number
-  description: string
-  popular?: boolean
-  bonus?: number
-}
-
-const tokenPackages: TokenPackage[] = [
-  {
-    id: 'starter',
-    name: 'Starter Pack',
-    tokens: 10,
-    price_usd: 9.99,
-    description: 'Perfect for trying out the platform'
-  },
-  {
-    id: 'professional',
-    name: 'Professional Pack',
-    tokens: 50,
-    price_usd: 39.99,
-    description: 'Great for regular users',
-    popular: true,
-    bonus: 5
-  },
-  {
-    id: 'premium',
-    name: 'Premium Pack',
-    tokens: 100,
-    price_usd: 69.99,
-    description: 'Best value for power users',
-    bonus: 15
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise Pack',
-    tokens: 250,
-    price_usd: 149.99,
-    description: 'For businesses and agencies',
-    bonus: 50
-  }
-]
 
 export const TokenPurchase = () => {
   const { user } = useAuthStore()
-  const [selectedPackage, setSelectedPackage] = useState<TokenPackage | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
+  const navigate = useNavigate()
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
+  const [isPurchasing, setIsPurchasing] = useState(false)
 
-  const handlePurchase = async (tokenPackage: TokenPackage) => {
-    if (!user) {
-      toast({
-        title: "Error",
-        description: "Please log in to purchase tokens",
-        variant: "destructive",
-      })
+  const handlePurchase = async (packageType: string) => {
+    if (!user?.id) {
+      toast.error('Please log in to purchase tokens')
       return
     }
 
-    setIsProcessing(true)
-    setSelectedPackage(tokenPackage)
+    const packageData = TOKEN_PRICING[packageType as keyof typeof TOKEN_PRICING]
+    if (!packageData) {
+      toast.error('Invalid package selected')
+      return
+    }
 
+    setIsPurchasing(true)
     try {
-      const response = await tokenService.purchaseTokens({
-        userId: user.id,
-        packageId: tokenPackage.id,
-        tokens: tokenPackage.tokens,
-        amount: tokenPackage.price_usd
-      })
-
+      // Use the token service to handle purchase
+      const response = await apiService.purchaseTokens(user.id, packageData.tokens, packageType)
+      
       if (response.success) {
-        toast({
-          title: "Success",
-          description: `Successfully purchased ${tokenPackage.tokens} tokens!`,
-        })
+        toast.success(`Successfully purchased ${packageData.tokens} tokens!`)
+        navigate('/my-tokens')
       } else {
-        toast({
-          title: "Error",
-          description: response.error || 'Failed to purchase tokens',
-          variant: "destructive",
-        })
+        toast.error(response.error || 'Failed to purchase tokens')
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: 'An error occurred during purchase',
-        variant: "destructive",
-      })
+      console.error('Purchase error:', error)
+      toast.error('Failed to purchase tokens')
     } finally {
-      setIsProcessing(false)
-      setSelectedPackage(null)
+      setIsPurchasing(false)
     }
   }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(price)
+  const getCountryConfig = () => {
+    return COUNTRY_CONFIGS[user?.country || 'zimbabwe']
   }
 
   if (!user) {
@@ -122,6 +66,9 @@ export const TokenPurchase = () => {
       <div className="container py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Please log in to purchase tokens</h1>
+          <Button onClick={() => navigate('/login')}>
+            Go to Login
+          </Button>
         </div>
       </div>
     )
@@ -129,95 +76,61 @@ export const TokenPurchase = () => {
 
   return (
     <div className="container py-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* Header */}
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/my-tokens')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to My Tokens
+          </Button>
+        </div>
+
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-bold">Purchase Tokens</h1>
           <p className="text-xl text-muted-foreground">
-            Choose the perfect token package for your needs
+            Choose the perfect package for your needs
           </p>
-          <div className="flex items-center justify-center space-x-2 text-lg">
-            <Zap className="h-5 w-5 text-yellow-500" />
-            <span>Current Balance: <strong>{user.tokens || 0} tokens</strong></span>
-          </div>
         </div>
 
         {/* Token Packages */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {tokenPackages.map((pkg) => (
+          {Object.entries(TOKEN_PRICING).map(([key, packageData]) => (
             <Card 
-              key={pkg.id} 
-              className={`relative hover:shadow-lg transition-shadow ${
-                pkg.popular ? 'border-primary shadow-lg' : ''
+              key={key}
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                selectedPackage === key ? 'ring-2 ring-primary' : ''
               }`}
+              onClick={() => setSelectedPackage(key)}
             >
-              {pkg.popular && (
-                <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                  <Badge className="bg-primary text-primary-foreground px-3 py-1">
-                    <Star className="h-3 w-3 mr-1" />
-                    Most Popular
-                  </Badge>
-                </div>
-              )}
-
-              <CardHeader className="text-center pb-2">
-                <div className="mb-4">
-                  {pkg.id === 'enterprise' ? (
-                    <Crown className="h-12 w-12 mx-auto text-yellow-500" />
-                  ) : (
-                    <Zap className="h-12 w-12 mx-auto text-blue-500" />
-                  )}
-                </div>
-                <CardTitle className="text-xl">{pkg.name}</CardTitle>
-                <div className="text-3xl font-bold text-primary">
-                  {formatPrice(pkg.price_usd)}
-                </div>
+              <CardHeader className="text-center pb-4">
+                <Package className="h-8 w-8 mx-auto mb-2 text-primary" />
+                <CardTitle className="text-lg capitalize">{key}</CardTitle>
+                <CardDescription>{packageData.description}</CardDescription>
               </CardHeader>
-
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{pkg.tokens} Tokens</div>
-                  {pkg.bonus && (
-                    <div className="text-sm text-green-600 font-medium">
-                      + {pkg.bonus} bonus tokens!
-                    </div>
-                  )}
+              <CardContent className="text-center space-y-4">
+                <div>
+                  <div className="text-3xl font-bold text-primary">
+                    {packageData.tokens}
+                  </div>
+                  <div className="text-sm text-muted-foreground">tokens</div>
                 </div>
-
-                <CardDescription className="text-center">
-                  {pkg.description}
-                </CardDescription>
-
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span>Submit proposals to opportunities</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span>Access premium features</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                    <span>Priority support</span>
-                  </div>
+                <div className="text-2xl font-bold">
+                  ${packageData.price_usd}
                 </div>
-
                 <Button 
-                  className="w-full" 
-                  onClick={() => handlePurchase(pkg)}
-                  disabled={isProcessing && selectedPackage?.id === pkg.id}
-                  variant={pkg.popular ? 'default' : 'outline'}
+                  className="w-full"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handlePurchase(key)
+                  }}
+                  disabled={isPurchasing}
                 >
-                  {isProcessing && selectedPackage?.id === pkg.id ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
+                  {isPurchasing ? (
+                    'Processing...'
                   ) : (
                     <>
-                      <CreditCard className="mr-2 h-4 w-4" />
-                      Purchase Now
+                      Purchase
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
                 </Button>
@@ -226,63 +139,62 @@ export const TokenPurchase = () => {
           ))}
         </div>
 
-        {/* Features Section */}
+        {/* Features */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-center">What You Get With Tokens</CardTitle>
+            <CardTitle>Why Purchase Tokens?</CardTitle>
+            <CardDescription>
+              Unlock premium features and maximize your opportunities
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="text-center space-y-2">
-                <Briefcase className="h-8 w-8 mx-auto text-blue-500" />
-                <h3 className="font-semibold">Submit Proposals</h3>
-                <p className="text-sm text-muted-foreground">
-                  Use tokens to submit proposals to client opportunities
-                </p>
-              </div>
-              <div className="text-center space-y-2">
                 <Star className="h-8 w-8 mx-auto text-yellow-500" />
-                <h3 className="font-semibold">Premium Features</h3>
+                <h3 className="font-semibold">Access Premium Jobs</h3>
                 <p className="text-sm text-muted-foreground">
-                  Access advanced search, priority listing, and more
+                  Apply to high-value opportunities before others
                 </p>
               </div>
               <div className="text-center space-y-2">
-                <Crown className="h-8 w-8 mx-auto text-purple-500" />
-                <h3 className="font-semibold">Priority Support</h3>
+                <Shield className="h-8 w-8 mx-auto text-green-500" />
+                <h3 className="font-semibold">Secure Payments</h3>
                 <p className="text-sm text-muted-foreground">
-                  Get faster response times and dedicated assistance
+                  All transactions are protected by our escrow system
+                </p>
+              </div>
+              <div className="text-center space-y-2">
+                <Clock className="h-8 w-8 mx-auto text-blue-500" />
+                <h3 className="font-semibold">Instant Activation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Tokens are added to your account immediately
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* FAQ Section */}
+        {/* Payment Info */}
         <Card>
           <CardHeader>
-            <CardTitle>Frequently Asked Questions</CardTitle>
+            <CardTitle>Payment Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <h4 className="font-semibold mb-2">How do tokens work?</h4>
-              <p className="text-sm text-muted-foreground">
-                Tokens are used to perform actions on the platform like submitting proposals, 
-                accessing premium features, and more. Each action costs a certain number of tokens.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Do tokens expire?</h4>
-              <p className="text-sm text-muted-foreground">
-                No, tokens never expire. Once purchased, they remain in your account until used.
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-2">Can I get a refund?</h4>
-              <p className="text-sm text-muted-foreground">
-                Token purchases are generally non-refundable, but we'll consider refunds on a 
-                case-by-case basis for unused tokens within 30 days of purchase.
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="font-semibold mb-2">Your Location</h3>
+                <p className="text-sm text-muted-foreground">
+                  Country: {getCountryConfig()?.name}<br />
+                  Currency: {getCountryConfig()?.currency} ({getCountryConfig()?.currency_symbol})
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Payment Method</h3>
+                <p className="text-sm text-muted-foreground">
+                  Secure escrow payment system<br />
+                  Multiple payment options available
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -290,5 +202,3 @@ export const TokenPurchase = () => {
     </div>
   )
 }
-
-export default TokenPurchase

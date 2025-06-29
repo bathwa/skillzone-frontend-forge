@@ -30,7 +30,7 @@ export interface UserProfile {
   completed_projects?: number
   verified?: boolean
   online_status?: 'online' | 'offline'
-  experience_level?: 'beginner' | 'intermediate' | 'expert'
+  experience_level?: 'junior' | 'mid' | 'senior' | 'expert'
   created_at: string
   updated_at: string
 }
@@ -62,7 +62,9 @@ export interface Proposal {
   budget: number
   proposed_budget?: number
   delivery_time: number
+  estimated_duration?: number
   message: string
+  cover_letter?: string
   status: 'pending' | 'accepted' | 'rejected'
   submitted_at: string
   created_at: string
@@ -120,7 +122,7 @@ export const mapDbProfileToUserProfile = (dbProfile: DbProfile): UserProfile => 
     completed_projects: dbProfile.total_jobs_completed || undefined,
     verified: dbProfile.is_verified || undefined,
     online_status: 'offline', // Default value, would need real-time status
-    experience_level: 'intermediate', // Default value
+    experience_level: 'mid', // Default value
     created_at: dbProfile.created_at,
     updated_at: dbProfile.updated_at,
   }
@@ -155,7 +157,9 @@ export const mapDbProposalToProposal = (dbProposal: DbProposal): Proposal => {
     budget: dbProposal.proposed_budget,
     proposed_budget: dbProposal.proposed_budget,
     delivery_time: dbProposal.estimated_duration || 0,
+    estimated_duration: dbProposal.estimated_duration || 0,
     message: dbProposal.cover_letter,
+    cover_letter: dbProposal.cover_letter,
     status: mapProposalStatus(dbProposal.status),
     submitted_at: dbProposal.created_at,
     created_at: dbProposal.created_at,
@@ -183,7 +187,7 @@ export const mapDbTokenTransactionToTokenTransaction = (dbTransaction: DbTokenTr
     user_id: dbTransaction.user_id,
     type: mapTransactionType(dbTransaction.transaction_type),
     amount: dbTransaction.amount,
-    balance_after: undefined, // Optional field
+    balance_after: 0, // Default value since it's optional in DB but required in interface
     description: dbTransaction.description || '',
     created_at: dbTransaction.created_at,
   }
