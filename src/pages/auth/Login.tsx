@@ -50,6 +50,19 @@ export const Login = () => {
     },
   })
 
+  const getRoleBasedRoute = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return '/admin/dashboard'
+      case 'client':
+        return '/dashboard'
+      case 'freelancer':
+        return '/dashboard'
+      default:
+        return '/dashboard'
+    }
+  }
+
   const onLoginSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     
@@ -78,13 +91,8 @@ export const Login = () => {
         toast.success('Welcome back to SkillZone!')
         
         // Role-based routing
-        if (response.data.role === 'client') {
-          navigate('/dashboard')
-        } else if (response.data.role === 'freelancer') {
-          navigate('/dashboard')
-        } else {
-          navigate('/dashboard')
-        }
+        const redirectRoute = getRoleBasedRoute(response.data.role)
+        navigate(redirectRoute)
       } else {
         console.error('Login failed:', response.error)
         toast.error(response.error || 'Invalid email or password. Please try again.')
