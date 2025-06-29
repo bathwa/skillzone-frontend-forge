@@ -29,6 +29,7 @@ export interface UserProfile {
   completed_projects?: number
   verified?: boolean
   online_status?: 'online' | 'offline'
+  experience_level?: 'beginner' | 'intermediate' | 'expert'
   created_at: string
   updated_at: string
 }
@@ -48,6 +49,8 @@ export interface Opportunity {
   proposals_count: number
   created_at: string
   updated_at: string
+  client_name?: string
+  client_id?: string
 }
 
 export interface Proposal {
@@ -56,9 +59,10 @@ export interface Proposal {
   freelancer_id: string
   client_id: string
   budget: number
+  proposed_budget?: number
   delivery_time: number
   message: string
-  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  status: 'pending' | 'accepted' | 'rejected'
   submitted_at: string
   created_at: string
   updated_at: string
@@ -77,6 +81,7 @@ export interface Notification {
   title: string
   message: string
   read_at?: string
+  is_read?: boolean
   created_at: string
 }
 
@@ -114,6 +119,7 @@ export const mapDbProfileToUserProfile = (dbProfile: DbProfile): UserProfile => 
     completed_projects: dbProfile.total_jobs_completed || undefined,
     verified: dbProfile.is_verified || undefined,
     online_status: 'offline', // Default value, would need real-time status
+    experience_level: 'intermediate', // Default value
     created_at: dbProfile.created_at,
     updated_at: dbProfile.updated_at,
   }
@@ -135,6 +141,7 @@ export const mapDbOpportunityToOpportunity = (dbOpportunity: DbOpportunity): Opp
     proposals_count: dbOpportunity.proposals_count || 0,
     created_at: dbOpportunity.created_at,
     updated_at: dbOpportunity.updated_at,
+    client_id: dbOpportunity.client_id,
   }
 }
 
@@ -145,9 +152,10 @@ export const mapDbProposalToProposal = (dbProposal: DbProposal): Proposal => {
     freelancer_id: dbProposal.freelancer_id,
     client_id: '', // Would need to be fetched from opportunity
     budget: dbProposal.proposed_budget,
+    proposed_budget: dbProposal.proposed_budget,
     delivery_time: dbProposal.estimated_duration || 0,
     message: dbProposal.cover_letter,
-    status: dbProposal.status,
+    status: mapProposalStatus(dbProposal.status),
     submitted_at: dbProposal.created_at,
     created_at: dbProposal.created_at,
     updated_at: dbProposal.updated_at,
@@ -162,6 +170,7 @@ export const mapDbNotificationToNotification = (dbNotification: DbNotification):
     title: dbNotification.title,
     message: dbNotification.message,
     read_at: dbNotification.is_read ? dbNotification.created_at : undefined,
+    is_read: dbNotification.is_read || false,
     created_at: dbNotification.created_at,
   }
 }
@@ -189,6 +198,20 @@ const mapOpportunityStatus = (status: Database['public']['Enums']['opportunity_s
       return 'closed'
     default:
       return 'active'
+  }
+}
+
+const mapProposalStatus = (status: Database['public']['Enums']['proposal_status']): 'pending' | 'accepted' | 'rejected' => {
+  switch (status) {
+    case 'pending':
+      return 'pending'
+    case 'accepted':
+      return 'accepted'
+    case 'rejected':
+    case 'withdrawn':
+      return 'rejected'
+    default:
+      return 'pending'
   }
 }
 
@@ -268,4 +291,4 @@ const mapOpportunityStatusToDb = (status?: 'active' | 'closed' | 'in_progress'):
     default:
       return 'open'
   }
-} 
+}

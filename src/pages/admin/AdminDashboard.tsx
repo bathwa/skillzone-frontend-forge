@@ -1,812 +1,430 @@
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
+import React, { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { useAuthStore } from '@/stores/authStore'
-import { countryService } from '@/lib/services/countryService'
-import { COUNTRY_CONFIGS, type CountryCode } from '@/lib/constants'
-import { 
-  Settings, 
-  CreditCard, 
-  Phone, 
-  Globe, 
-  Users, 
-  DollarSign,
-  Plus,
-  Edit,
-  Trash2,
-  Save,
-  X
-} from 'lucide-react'
 import { apiService } from '@/lib/services/apiService'
-import { toast } from 'sonner'
-
-interface EscrowAccount {
-  id: string
-  country: CountryCode
-  account_name: string
-  account_number: string
-  account_type: 'mobile_wallet' | 'bank_account' | 'digital_wallet'
-  provider?: string
-  phone_number?: string
-  is_active: boolean
-}
-
-interface SupportContact {
-  id: string
-  country: CountryCode
-  phone: string
-  email: string
-  whatsapp: string
-  is_active: boolean
-}
-
-interface EscrowAccountFormData {
-  country: CountryCode
-  account_name: string
-  account_number: string
-  account_type: 'mobile_wallet' | 'bank_account' | 'digital_wallet'
-  provider?: string
-  phone_number?: string
-}
-
-interface SupportContactFormData {
-  country: CountryCode
-  phone: string
-  email: string
-  whatsapp: string
-}
+import { 
+  Users, 
+  Briefcase, 
+  CreditCard, 
+  Settings,
+  UserPlus,
+  DollarSign,
+  BarChart3,
+  Shield,
+  Phone,
+} from 'lucide-react'
 
 interface AdminStats {
   totalUsers: number
-  activeFreelancers: number
-  activeClients: number
+  totalOpportunities: number
   totalTransactions: number
-  platformFees: number
-  pendingEscrow: number
+  totalRevenue: number
 }
 
 export default function AdminDashboard() {
   const { user } = useAuthStore()
-  const [selectedCountry, setSelectedCountry] = useState<CountryCode>('zimbabwe')
-  const [escrowAccounts, setEscrowAccounts] = useState<EscrowAccount[]>([])
-  const [supportContacts, setSupportContacts] = useState<SupportContact[]>([])
-  const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
-  const [editingEscrow, setEditingEscrow] = useState<string | null>(null)
-  const [editingContact, setEditingContact] = useState<string | null>(null)
-  const [newEscrow, setNewEscrow] = useState<Partial<EscrowAccount>>({})
-  const [newContact, setNewContact] = useState<Partial<SupportContact>>({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [showEscrowForm, setShowEscrowForm] = useState(false)
-  const [showSupportForm, setShowSupportForm] = useState(false)
-  const [showAddEscrowForm, setShowAddEscrowForm] = useState(false)
-  const [showAddSupportForm, setShowAddSupportForm] = useState(false)
+  const [stats, setStats] = useState<AdminStats>({
+    totalUsers: 0,
+    totalOpportunities: 0,
+    totalTransactions: 0,
+    totalRevenue: 0
+  })
+  const [users, setUsers] = useState<any[]>([])
+  const [opportunities, setOpportunities] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Load admin data
+  // Placeholder data for features not yet implemented
+  const [escrowAccounts] = useState([
+    {
+      id: '1',
+      country: 'south_africa',
+      account_name: 'FreelanceHub Escrow SA',
+      account_number: '1234567890',
+      account_type: 'bank_account',
+      provider: 'Standard Bank',
+      is_active: true
+    }
+  ])
+
+  const [supportContacts] = useState([
+    {
+      id: '1',
+      country: 'south_africa',
+      contact_type: 'email',
+      contact_value: 'support@freelancehub.co.za',
+      description: 'General Support',
+      is_active: true
+    }
+  ])
+
   useEffect(() => {
-    loadAdminData()
-  }, [selectedCountry])
+    if (user?.role === 'admin') {
+      loadAdminData()
+    }
+  }, [user])
 
   const loadAdminData = async () => {
     setIsLoading(true)
     try {
-      // Load admin stats
-      const statsResponse = await apiService.getAdminStats()
-      if (statsResponse.success && statsResponse.data) {
-        setAdminStats(statsResponse.data)
+      // Load all users
+      const allUsers = await apiService.getAllUsers()
+      if (allUsers) {
+        setUsers(allUsers)
       }
 
-      // Load escrow accounts
-      const escrowResponse = await apiService.getEscrowAccounts(selectedCountry)
-      if (escrowResponse.success && escrowResponse.data) {
-        setEscrowAccounts(escrowResponse.data)
+      // Load all opportunities
+      const allOpportunities = await apiService.getAllOpportunities()
+      if (allOpportunities) {
+        setOpportunities(allOpportunities)
       }
 
-      // Load support contacts
-      const supportResponse = await apiService.getSupportContacts(selectedCountry)
-      if (supportResponse.success && supportResponse.data) {
-        setSupportContacts(supportResponse.data)
-      }
+      // Calculate stats
+      setStats({
+        totalUsers: allUsers?.length || 0,
+        totalOpportunities: allOpportunities?.length || 0,
+        totalTransactions: 0, // Would need transaction data
+        totalRevenue: 0 // Would need payment data
+      })
+
     } catch (error) {
-      toast.error('Failed to load admin data')
+      console.error('Error loading admin data:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleSaveEscrowAccount = async (data: EscrowAccountFormData) => {
-    setIsLoading(true)
-    try {
-      const response = await apiService.saveEscrowAccount({
-        country: data.country,
-        account_name: data.account_name,
-        account_number: data.account_number,
-        account_type: data.account_type,
-        provider: data.provider,
-        phone_number: data.phone_number,
-      })
-      
-      if (response.success) {
-        toast.success('Escrow account saved successfully')
-        setShowEscrowForm(false)
-        // Refresh escrow accounts list
-        loadAdminData()
-      } else {
-        toast.error(response.error || 'Failed to save escrow account')
-      }
-    } catch (error) {
-      toast.error('Failed to save escrow account')
-    } finally {
-      setIsLoading(false)
-    }
+  const handleSaveEscrowAccount = async (accountData: any) => {
+    // Placeholder - would implement when database table exists
+    console.log('Escrow account save not implemented:', accountData)
   }
 
-  const handleSaveSupportContact = async (data: SupportContactFormData) => {
-    setIsLoading(true)
-    try {
-      const response = await apiService.saveSupportContact({
-        country: data.country,
-        phone: data.phone,
-        email: data.email,
-        whatsapp: data.whatsapp,
-      })
-      
-      if (response.success) {
-        toast.success('Support contact saved successfully')
-        setShowSupportForm(false)
-        // Refresh support contacts list
-        loadAdminData()
-      } else {
-        toast.error(response.error || 'Failed to save support contact')
-      }
-    } catch (error) {
-      toast.error('Failed to save support contact')
-    } finally {
-      setIsLoading(false)
-    }
+  const handleSaveSupportContact = async (contactData: any) => {
+    // Placeholder - would implement when database table exists
+    console.log('Support contact save not implemented:', contactData)
   }
 
-  const handleAddEscrowAccount = async (data: EscrowAccountFormData) => {
-    setIsLoading(true)
-    try {
-      const response = await apiService.saveEscrowAccount({
-        country: data.country,
-        account_name: data.account_name,
-        account_number: data.account_number,
-        account_type: data.account_type,
-        provider: data.provider,
-        phone_number: data.phone_number,
-      })
-      
-      if (response.success) {
-        toast.success('Escrow account added successfully')
-        setShowAddEscrowForm(false)
-        // Refresh escrow accounts list
-        loadAdminData()
-      } else {
-        toast.error(response.error || 'Failed to add escrow account')
-      }
-    } catch (error) {
-      toast.error('Failed to add escrow account')
-    } finally {
-      setIsLoading(false)
-    }
+  const handleUpdateEscrowAccount = async (id: string, data: any) => {
+    // Placeholder - would implement when database table exists
+    console.log('Escrow account update not implemented:', id, data)
   }
 
-  const handleAddSupportContact = async (data: SupportContactFormData) => {
-    setIsLoading(true)
-    try {
-      const response = await apiService.saveSupportContact({
-        country: data.country,
-        phone: data.phone,
-        email: data.email,
-        whatsapp: data.whatsapp,
-      })
-      
-      if (response.success) {
-        toast.success('Support contact added successfully')
-        setShowAddSupportForm(false)
-        // Refresh support contacts list
-        loadAdminData()
-      } else {
-        toast.error(response.error || 'Failed to add support contact')
-      }
-    } catch (error) {
-      toast.error('Failed to add support contact')
-    } finally {
-      setIsLoading(false)
-    }
+  const handleUpdateSupportContact = async (id: string, data: any) => {
+    // Placeholder - would implement when database table exists
+    console.log('Support contact update not implemented:', id, data)
   }
 
-  const handleSubmitEscrowForm = () => {
-    if (!newEscrow.account_name || !newEscrow.account_number || !newEscrow.account_type) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-    
-    handleAddEscrowAccount({
-      country: selectedCountry,
-      account_name: newEscrow.account_name,
-      account_number: newEscrow.account_number,
-      account_type: newEscrow.account_type,
-      provider: newEscrow.provider,
-      phone_number: newEscrow.phone_number,
-    })
-  }
-
-  const handleSubmitSupportForm = () => {
-    if (!newContact.phone || !newContact.email || !newContact.whatsapp) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-    
-    handleAddSupportContact({
-      country: selectedCountry,
-      phone: newContact.phone,
-      email: newContact.email,
-      whatsapp: newContact.whatsapp,
-    })
-  }
-
-  const handleUpdateOpportunityStatus = async (opportunityId: string, status: 'open' | 'in_progress' | 'completed' | 'cancelled') => {
-    try {
-      const response = await apiService.updateOpportunityStatus(opportunityId, status)
-      
-      if (response.success) {
-        toast.success('Opportunity status updated successfully')
-        // Refresh opportunities list
-        loadAdminData()
-      } else {
-        toast.error(response.error || 'Failed to update opportunity status')
-      }
-    } catch (error) {
-      toast.error('Failed to update opportunity status')
-    }
-  }
-
-  const toggleEscrowStatus = async (escrowId: string) => {
-    const account = escrowAccounts.find(acc => acc.id === escrowId)
-    if (!account) return
-
-    try {
-      const response = await apiService.updateEscrowAccount(escrowId, {
-        is_active: !account.is_active
-      })
-      
-      if (response.success) {
-        toast.success('Escrow account status updated successfully')
-        // Refresh escrow accounts list
-        loadAdminData()
-      } else {
-        toast.error(response.error || 'Failed to update escrow account status')
-      }
-    } catch (error) {
-      toast.error('Failed to update escrow account status')
-    }
-  }
-
-  const toggleContactStatus = async (contactId: string) => {
-    const contact = supportContacts.find(cont => cont.id === contactId)
-    if (!contact) return
-
-    try {
-      const response = await apiService.updateSupportContact(contactId, {
-        is_active: !contact.is_active
-      })
-      
-      if (response.success) {
-        toast.success('Support contact status updated successfully')
-        // Refresh support contacts list
-        loadAdminData()
-      } else {
-        toast.error(response.error || 'Failed to update support contact status')
-      }
-    } catch (error) {
-      toast.error('Failed to update support contact status')
-    }
+  if (!user || user.role !== 'admin') {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
+          <p className="text-muted-foreground">You don't have permission to access this page.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage platform settings and country configurations</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Globe className="h-5 w-5" />
-          <Select value={selectedCountry} onValueChange={(value: CountryCode) => setSelectedCountry(value)}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(COUNTRY_CONFIGS).map(([code, config]) => (
-                <SelectItem key={code} value={code}>
-                  {config.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
+        <p className="text-muted-foreground">
+          Manage users, opportunities, and system settings
+        </p>
       </div>
 
-      <Tabs defaultValue="escrow" className="space-y-4">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <p className="text-xs text-muted-foreground">
+              Active platform users
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Opportunities</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalOpportunities}</div>
+            <p className="text-xs text-muted-foreground">
+              Posted opportunities
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Transactions</CardTitle>
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalTransactions}</div>
+            <p className="text-xs text-muted-foreground">
+              Payment transactions
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Revenue</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${stats.totalRevenue}</div>
+            <p className="text-xs text-muted-foreground">
+              Platform earnings
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Admin Tabs */}
+      <Tabs defaultValue="users" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="escrow" className="flex items-center space-x-2">
-            <CreditCard className="h-4 w-4" />
-            <span>Escrow Accounts</span>
-          </TabsTrigger>
-          <TabsTrigger value="support" className="flex items-center space-x-2">
-            <Phone className="h-4 w-4" />
-            <span>Support Contacts</span>
-          </TabsTrigger>
-          <TabsTrigger value="platform" className="flex items-center space-x-2">
-            <Settings className="h-4 w-4" />
-            <span>Platform Settings</span>
-          </TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
+          <TabsTrigger value="escrow">Escrow Accounts</TabsTrigger>
+          <TabsTrigger value="support">Support Contacts</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="escrow" className="space-y-4">
+        {/* Users Tab */}
+        <TabsContent value="users">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Escrow Accounts - {COUNTRY_CONFIGS[selectedCountry].name}</span>
-                <Button onClick={() => setNewEscrow({})} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Account
-                </Button>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                User Management
               </CardTitle>
-              <CardDescription>
-                Manage escrow accounts for token purchases and payments
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add New Escrow Form */}
-              {Object.keys(newEscrow).length > 0 && (
-                <Card className="border-dashed">
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <CardContent>
+              {isLoading ? (
+                <div>Loading users...</div>
+              ) : users.length > 0 ? (
+                <div className="space-y-4">
+                  {users.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                        <Label htmlFor="account-name">Account Name</Label>
-                        <Input
-                          id="account-name"
-                          value={newEscrow.account_name || ''}
-                          onChange={(e) => setNewEscrow({ ...newEscrow, account_name: e.target.value })}
-                          placeholder="Account holder name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="account-number">Account Number</Label>
-                        <Input
-                          id="account-number"
-                          value={newEscrow.account_number || ''}
-                          onChange={(e) => setNewEscrow({ ...newEscrow, account_number: e.target.value })}
-                          placeholder="Account number"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="account-type">Account Type</Label>
-                        <Select
-                          value={newEscrow.account_type || ''}
-                          onValueChange={(value) => setNewEscrow({ ...newEscrow, account_type: value as any })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="mobile_wallet">Mobile Wallet</SelectItem>
-                            <SelectItem value="bank_account">Bank Account</SelectItem>
-                            <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label htmlFor="provider">Provider</Label>
-                        <Input
-                          id="provider"
-                          value={newEscrow.provider || ''}
-                          onChange={(e) => setNewEscrow({ ...newEscrow, provider: e.target.value })}
-                          placeholder="e.g., Ecocash, Standard Bank"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input
-                          id="phone"
-                          value={newEscrow.phone_number || ''}
-                          onChange={(e) => setNewEscrow({ ...newEscrow, phone_number: e.target.value })}
-                          placeholder="Phone number"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end space-x-2 mt-4">
-                      <Button variant="outline" onClick={() => setNewEscrow({})}>
-                        <X className="h-4 w-4 mr-2" />
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSubmitEscrowForm}>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Existing Escrow Accounts */}
-              <div className="space-y-4">
-                {escrowAccounts.map((escrow) => (
-                  <Card key={escrow.id}>
-                    <CardContent className="pt-6">
-                      {editingEscrow === escrow.id ? (
-                        <EscrowEditForm
-                          escrow={escrow}
-                          onSave={handleSaveEscrowAccount}
-                          onCancel={() => setEditingEscrow(null)}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <h3 className="font-semibold">{escrow.account_name}</h3>
-                              <Badge variant={escrow.is_active ? 'default' : 'secondary'}>
-                                {escrow.is_active ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {escrow.account_number} • {escrow.account_type}
-                            </p>
-                            {escrow.provider && (
-                              <p className="text-sm text-muted-foreground">
-                                Provider: {escrow.provider}
-                              </p>
-                            )}
-                            {escrow.phone_number && (
-                              <p className="text-sm text-muted-foreground">
-                                Phone: {escrow.phone_number}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => toggleEscrowStatus(escrow.id)}
-                            >
-                              {escrow.is_active ? 'Deactivate' : 'Activate'}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingEscrow(escrow.id)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
+                        <h3 className="font-medium">{user.name || `${user.first_name} ${user.last_name}`}</h3>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                        <div className="flex gap-2 mt-1">
+                          <Badge variant="outline">{user.role}</Badge>
+                          <Badge variant="secondary">{user.tokens || 0} tokens</Badge>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">Edit</Button>
+                        <Button variant="outline" size="sm">
+                          {user.is_verified ? 'Verified' : 'Verify'}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No users found</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Opportunities Tab */}
+        <TabsContent value="opportunities">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5" />
+                Opportunity Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div>Loading opportunities...</div>
+              ) : opportunities.length > 0 ? (
+                <div className="space-y-4">
+                  {opportunities.map((opportunity) => (
+                    <div key={opportunity.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-medium">{opportunity.title}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          ${opportunity.budget_min} - ${opportunity.budget_max}
+                        </p>
+                        <div className="flex gap-2 mt-1">
+                          <Badge variant="outline">{opportunity.category}</Badge>
+                          <Badge variant="secondary">{opportunity.status}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">View</Button>
+                        <Button variant="outline" size="sm">Manage</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-4">No opportunities found</p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Escrow Accounts Tab */}
+        <TabsContent value="escrow">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Escrow Accounts
+              </CardTitle>
+              <Button onClick={() => handleSaveEscrowAccount({})}>
+                Add Account
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {escrowAccounts.map((account) => (
+                  <div key={account.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{account.account_name}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {account.account_number} • {account.provider}
+                      </p>
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant="outline">{account.country}</Badge>
+                        <Badge variant={account.is_active ? 'default' : 'secondary'}>
+                          {account.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleUpdateEscrowAccount(account.id, {})}
+                      >
+                        Edit
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        {account.is_active ? 'Deactivate' : 'Activate'}
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="support" className="space-y-4">
+        {/* Support Contacts Tab */}
+        <TabsContent value="support">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Support Contacts - {COUNTRY_CONFIGS[selectedCountry].name}</span>
-                <Button onClick={() => setNewContact({})} size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Contact
-                </Button>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="h-5 w-5" />
+                Support Contacts
               </CardTitle>
-              <CardDescription>
-                Manage support contact information for each country
-              </CardDescription>
+              <Button onClick={() => handleSaveSupportContact({})}>
+                Add Contact
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add New Contact Form */}
-              {Object.keys(newContact).length > 0 && (
-                <Card className="border-dashed">
-                  <CardContent className="pt-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="support-phone">Phone</Label>
-                        <Input
-                          id="support-phone"
-                          value={newContact.phone || ''}
-                          onChange={(e) => setNewContact({ ...newContact, phone: e.target.value })}
-                          placeholder="Phone number"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="support-email">Email</Label>
-                        <Input
-                          id="support-email"
-                          type="email"
-                          value={newContact.email || ''}
-                          onChange={(e) => setNewContact({ ...newContact, email: e.target.value })}
-                          placeholder="Email address"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="support-whatsapp">WhatsApp</Label>
-                        <Input
-                          id="support-whatsapp"
-                          value={newContact.whatsapp || ''}
-                          onChange={(e) => setNewContact({ ...newContact, whatsapp: e.target.value })}
-                          placeholder="WhatsApp number"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end space-x-2 mt-4">
-                      <Button variant="outline" onClick={() => setNewContact({})}>
-                        <X className="h-4 w-4 mr-2" />
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSubmitSupportForm}>
-                        <Save className="h-4 w-4 mr-2" />
-                        Save
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Existing Support Contacts */}
+            <CardContent>
               <div className="space-y-4">
                 {supportContacts.map((contact) => (
-                  <Card key={contact.id}>
-                    <CardContent className="pt-6">
-                      {editingContact === contact.id ? (
-                        <ContactEditForm
-                          contact={contact}
-                          onSave={handleSaveSupportContact}
-                          onCancel={() => setEditingContact(null)}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <div className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <h3 className="font-semibold">Support Contact</h3>
-                              <Badge variant={contact.is_active ? 'default' : 'secondary'}>
-                                {contact.is_active ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </div>
-                            <div className="space-y-1 text-sm text-muted-foreground">
-                              <p>📞 {contact.phone}</p>
-                              <p>📧 {contact.email}</p>
-                              <p>💬 {contact.whatsapp}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => toggleContactStatus(contact.id)}
-                            >
-                              {contact.is_active ? 'Deactivate' : 'Activate'}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingContact(contact.id)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <div key={contact.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <h3 className="font-medium">{contact.description}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {contact.contact_type}: {contact.contact_value}
+                      </p>
+                      <div className="flex gap-2 mt-1">
+                        <Badge variant="outline">{contact.country}</Badge>
+                        <Badge variant={contact.is_active ? 'default' : 'secondary'}>
+                          {contact.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleUpdateSupportContact(contact.id, {})}
+                      >
+                        Edit
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        {contact.is_active ? 'Deactivate' : 'Activate'}
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="platform" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="h-5 w-5" />
-                  <span>User Statistics</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Total Users</span>
-                    <span className="font-semibold">{adminStats?.totalUsers?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Active Freelancers</span>
-                    <span className="font-semibold">{adminStats?.activeFreelancers?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Active Clients</span>
-                    <span className="font-semibold">{adminStats?.activeClients?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>New This Month</span>
-                    <span className="font-semibold">-</span>
+        {/* Settings Tab */}
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                System Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Platform Configuration</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Platform Fee (%)</label>
+                      <Input type="number" defaultValue="5" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Min Token Purchase</label>
+                      <Input type="number" defaultValue="10" />
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-4">Email Settings</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Support Email</label>
+                      <Input defaultValue="support@freelancehub.com" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">No-Reply Email</label>
+                      <Input defaultValue="noreply@freelancehub.com" />
+                    </div>
+                  </div>
+                </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <DollarSign className="h-5 w-5" />
-                  <span>Financial Overview</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span>Total Transactions</span>
-                    <span className="font-semibold">${adminStats?.totalTransactions?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Platform Fees</span>
-                    <span className="font-semibold">${adminStats?.platformFees?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Pending Escrow</span>
-                    <span className="font-semibold">${adminStats?.pendingEscrow?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>This Month</span>
-                    <span className="font-semibold">-</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                <Button>Save Settings</Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
   )
 }
-
-// Edit Form Components
-function EscrowEditForm({ 
-  escrow, 
-  onSave, 
-  onCancel 
-}: { 
-  escrow: EscrowAccount
-  onSave: (escrow: EscrowAccount) => void
-  onCancel: () => void
-}) {
-  const [formData, setFormData] = useState(escrow)
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="edit-account-name">Account Name</Label>
-          <Input
-            id="edit-account-name"
-            value={formData.account_name}
-            onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-account-number">Account Number</Label>
-          <Input
-            id="edit-account-number"
-            value={formData.account_number}
-            onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-account-type">Account Type</Label>
-          <Select
-            value={formData.account_type}
-            onValueChange={(value) => setFormData({ ...formData, account_type: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="mobile_wallet">Mobile Wallet</SelectItem>
-              <SelectItem value="bank_account">Bank Account</SelectItem>
-              <SelectItem value="digital_wallet">Digital Wallet</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="edit-provider">Provider</Label>
-          <Input
-            id="edit-provider"
-            value={formData.provider || ''}
-            onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-phone">Phone Number</Label>
-          <Input
-            id="edit-phone"
-            value={formData.phone_number || ''}
-            onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
-          />
-        </div>
-      </div>
-      <div className="flex justify-end space-x-2">
-        <Button variant="outline" onClick={onCancel}>
-          <X className="h-4 w-4 mr-2" />
-          Cancel
-        </Button>
-        <Button onClick={() => onSave(formData)}>
-          <Save className="h-4 w-4 mr-2" />
-          Save
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-function ContactEditForm({ 
-  contact, 
-  onSave, 
-  onCancel 
-}: { 
-  contact: SupportContact
-  onSave: (contact: SupportContact) => void
-  onCancel: () => void
-}) {
-  const [formData, setFormData] = useState(contact)
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <Label htmlFor="edit-support-phone">Phone</Label>
-          <Input
-            id="edit-support-phone"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-support-email">Email</Label>
-          <Input
-            id="edit-support-email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          />
-        </div>
-        <div>
-          <Label htmlFor="edit-support-whatsapp">WhatsApp</Label>
-          <Input
-            id="edit-support-whatsapp"
-            value={formData.whatsapp}
-            onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-          />
-        </div>
-      </div>
-      <div className="flex justify-end space-x-2">
-        <Button variant="outline" onClick={onCancel}>
-          <X className="h-4 w-4 mr-2" />
-          Cancel
-        </Button>
-        <Button onClick={() => onSave(formData)}>
-          <Save className="h-4 w-4 mr-2" />
-          Save
-        </Button>
-      </div>
-    </div>
-  )
-} 
