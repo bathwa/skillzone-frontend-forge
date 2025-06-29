@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -242,7 +243,10 @@ export const Chat: React.FC<ChatProps> = ({ projectId, otherUserId, onClose }) =
                   </Avatar>
                   <div>
                     <h3 className="font-medium">
-                      {getRoomTitle(chatRooms?.data?.find((r: ChatRoom) => r.id === selectedRoom) || {})}
+                      {(() => {
+                        const room = chatRooms?.data?.find((r: ChatRoom) => r.id === selectedRoom)
+                        return room ? getRoomTitle(room) : 'Chat'
+                      })()}
                     </h3>
                     <p className="text-xs text-muted-foreground">
                       {projectId ? 'Project conversation' : 'Direct message'}
