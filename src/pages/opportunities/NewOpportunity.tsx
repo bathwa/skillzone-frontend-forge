@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,16 +57,16 @@ export default function NewOpportunity() {
         budget_min: parseFloat(formData.budget_min) || 0,
         budget_max: parseFloat(formData.budget_max) || 0,
         type: formData.type,
-        skills: skills,
+        required_skills: skills,
         proposals_count: 0,
-        status: 'active' as const,
+        status: 'open' as const,
         posted_at: new Date().toISOString(),
       }
 
-      const { data, error } = await opportunityService.createOpportunity(opportunityData)
+      const response = await opportunityService.createOpportunity(opportunityData)
       
-      if (error) {
-        throw new Error(error)
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to create opportunity')
       }
 
       toast({

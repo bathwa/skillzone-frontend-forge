@@ -159,6 +159,7 @@ export const mapDbProposalToProposal = (dbProposal: DbProposal): Proposal => {
     submitted_at: dbProposal.created_at,
     created_at: dbProposal.created_at,
     updated_at: dbProposal.updated_at,
+    freelancer: undefined, // Optional field
   }
 }
 
@@ -181,6 +182,7 @@ export const mapDbTokenTransactionToTokenTransaction = (dbTransaction: DbTokenTr
     user_id: dbTransaction.user_id,
     type: mapTransactionType(dbTransaction.transaction_type),
     amount: dbTransaction.amount,
+    balance_after: undefined, // Optional field
     description: dbTransaction.description || '',
     created_at: dbTransaction.created_at,
   }

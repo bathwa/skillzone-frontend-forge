@@ -77,17 +77,17 @@ export default function Dashboard() {
     setIsLoading(true)
     try {
       // Load opportunities
-      const { data: opportunities } = await opportunityService.getOpportunities({
+      const opportunitiesResponse = await opportunityService.getOpportunities({
         category: '',
         country: user.country,
         search: '',
-        type: 'all',
+        type: 'standard',
         sort: 'newest',
         limit: 5
       })
 
-      if (opportunities) {
-        setRecentOpportunities(opportunities.slice(0, 5).map(opp => ({
+      if (opportunitiesResponse.success && opportunitiesResponse.data) {
+        setRecentOpportunities(opportunitiesResponse.data.slice(0, 5).map(opp => ({
           id: opp.id,
           title: opp.title,
           budget_min: opp.budget_min,
@@ -98,12 +98,13 @@ export default function Dashboard() {
       }
 
       // Load user's proposals and related data
-      const proposals = await apiService.getUserProposals(user.id)
-      if (proposals) {
+      const proposalsResponse = await apiService.getUserProposals(user.id)
+      if (proposalsResponse.success && proposalsResponse.data) {
+        const proposals = proposalsResponse.data
         const mappedProposals = proposals.map(proposal => ({
           id: proposal.id,
           opportunity_title: proposal.opportunity?.title || 'Unknown',
-          status: proposal.status as 'pending' | 'accepted' | 'rejected',
+          status: proposal.status === 'withdrawn' ? 'rejected' : proposal.status as 'pending' | 'accepted' | 'rejected',
           submitted_at: proposal.created_at,
           client_name: 'Client', // Would need to fetch from opportunity
           budget: `$${proposal.budget}`
@@ -117,14 +118,14 @@ export default function Dashboard() {
       }
 
       // Load notifications
-      const userNotifications = await apiService.getUserNotifications(user.id)
-      if (userNotifications) {
-        const mappedNotifications = userNotifications.slice(0, 5).map(notification => ({
+      const notificationsResponse = await apiService.getNotifications(user.id)
+      if (notificationsResponse.success && notificationsResponse.data) {
+        const mappedNotifications = notificationsResponse.data.slice(0, 5).map(notification => ({
           id: notification.id,
           title: notification.title,
           message: notification.message,
           created_at: notification.created_at,
-          read: notification.is_read || false
+          read: notification.read_at ? true : false
         }))
         setNotifications(mappedNotifications)
       }
@@ -132,8 +133,8 @@ export default function Dashboard() {
       // Set other stats (would come from user profile or calculated)
       setStats(prev => ({
         ...prev,
-        totalOpportunities: opportunities?.length || 0,
-        completedProjects: user.completed_projects || 0,
+        totalOpportunities: opportunitiesResponse.data?.length || 0,
+        completedProjects: user.total_jobs_completed || 0,
         totalEarnings: user.total_earnings || 0
       }))
       

@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,9 +12,9 @@ import { SignUp } from "@/pages/auth/SignUp";
 import { Login } from "@/pages/auth/Login";
 import { ForgotPassword } from "@/pages/auth/ForgotPassword";
 import { OpportunityList } from "@/pages/opportunities/OpportunityList";
-import { NewOpportunity } from "@/pages/opportunities/NewOpportunity";
+import NewOpportunity from "@/pages/opportunities/NewOpportunity";
 import { SkillProviderList } from "@/pages/skills/SkillProviderList";
-import { Dashboard } from "@/pages/dashboard/Dashboard";
+import Dashboard from "@/pages/dashboard/Dashboard";
 import { MyProfile } from "@/pages/MyProfile";
 import { Notifications } from "@/pages/Notifications";
 import { MyTokens } from "@/pages/MyTokens";
