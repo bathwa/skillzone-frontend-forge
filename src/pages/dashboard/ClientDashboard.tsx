@@ -68,7 +68,7 @@ export default function ClientDashboard() {
           title: opp.title,
           budget_min: opp.budget_min,
           budget_max: opp.budget_max,
-          status: opp.status,
+          status: opp.status === 'open' ? 'active' : opp.status,
           created_at: opp.created_at,
           proposals_count: opp.proposals_count || 0
         }))
@@ -78,7 +78,7 @@ export default function ClientDashboard() {
         // Calculate stats
         setStats({
           totalOpportunities: clientOpportunities.length,
-          activeOpportunities: clientOpportunities.filter(opp => opp.status === 'open').length,
+          activeOpportunities: clientOpportunities.filter(opp => opp.status === 'active').length,
           totalProposals: clientOpportunities.reduce((sum, opp) => sum + opp.proposals_count, 0),
           completedProjects: user.total_jobs_completed || 0
         })
@@ -244,7 +244,7 @@ export default function ClientDashboard() {
                         Budget: {formatCurrency(opportunity.budget_min)} - {formatCurrency(opportunity.budget_max)}
                       </CardDescription>
                     </div>
-                    <Badge variant={opportunity.status === 'open' ? 'default' : 'secondary'}>
+                    <Badge variant={opportunity.status === 'active' ? 'default' : 'secondary'}>
                       {opportunity.status}
                     </Badge>
                   </div>

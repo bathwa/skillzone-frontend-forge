@@ -59,7 +59,17 @@ export const MyTokens = () => {
       // Load transaction history
       const transactionsResponse = await apiService.getTokenTransactions(user.id)
       if (transactionsResponse.success && transactionsResponse.data) {
-        setTransactions(transactionsResponse.data)
+        const mappedTransactions: TokenTransaction[] = transactionsResponse.data.map(transaction => ({
+          id: transaction.id,
+          user_id: transaction.user_id,
+          type: transaction.type as 'purchase' | 'spend' | 'refund' | 'bonus',
+          amount: transaction.amount,
+          balance_after: transaction.balance_after || 0,
+          description: transaction.description || '',
+          reference: transaction.reference,
+          created_at: transaction.created_at,
+        }))
+        setTransactions(mappedTransactions)
       } else {
         setTransactions([])
         if (transactionsResponse.error) {
@@ -209,7 +219,7 @@ export const MyTokens = () => {
                   <p className="text-xs text-muted-foreground">Lifetime tokens</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card>  
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -427,4 +437,4 @@ export const MyTokens = () => {
       </div>
     </div>
   )
-} 
+}

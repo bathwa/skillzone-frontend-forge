@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -56,7 +55,7 @@ export const ProfileSetupWizard = ({ onComplete }: ProfileSetupWizardProps) => {
 
     setIsLoading(true)
     try {
-      const response = await apiService.updateProfile(user.id, {
+      const response = await apiService.updateUserProfile(user.id, {
         bio: data.bio,
         hourly_rate: data.hourly_rate,
         city: data.city,

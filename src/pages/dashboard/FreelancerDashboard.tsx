@@ -9,37 +9,33 @@ import { apiService } from '@/lib/services/apiService'
 import { toast } from 'sonner'
 import {
   Search,
-  FileText,
-  CheckCircle,
-  TrendingUp,
-  Clock,
-  ArrowRight,
   Briefcase,
+  DollarSign,
+  Clock,
   Star,
-  MessageSquare
+  ArrowRight,
+  TrendingUp,
+  Users,
+  CheckCircle
 } from 'lucide-react'
 
 interface Opportunity {
   id: string
   title: string
+  description: string
   budget_min: number
   budget_max: number
-  status: string
-  created_at: string
   category: string
-}
-
-interface Proposal {
-  id: string
-  opportunity_title: string
-  status: 'pending' | 'accepted' | 'rejected'
-  submitted_at: string
-  proposed_budget: number
+  type: 'standard' | 'premium'
+  status: string
+  client_country: string
+  created_at: string
+  proposals_count: number
 }
 
 interface FreelancerStats {
-  totalProposals: number
-  acceptedProposals: number
+  appliedJobs: number
+  activeProposals: number
   completedProjects: number
   totalEarnings: number
 }
@@ -47,10 +43,9 @@ interface FreelancerStats {
 export default function FreelancerDashboard() {
   const { user } = useAuthStore()
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
-  const [proposals, setProposals] = useState<Proposal[]>([])
   const [stats, setStats] = useState<FreelancerStats>({
-    totalProposals: 0,
-    acceptedProposals: 0,
+    appliedJobs: 0,
+    activeProposals: 0,
     completedProjects: 0,
     totalEarnings: 0
   })
@@ -72,35 +67,27 @@ export default function FreelancerDashboard() {
       })
 
       if (Array.isArray(opportunitiesResponse)) {
-        const recentOpportunities = opportunitiesResponse.slice(0, 5).map(opp => ({
+        const mappedOpportunities = opportunitiesResponse.slice(0, 5).map(opp => ({
           id: opp.id,
           title: opp.title,
+          description: opp.description,
           budget_min: opp.budget_min,
           budget_max: opp.budget_max,
-          status: opp.status,
+          category: opp.category,
+          type: opp.type,
+          status: opp.status === 'open' ? 'active' : opp.status,
+          client_country: opp.client_country,
           created_at: opp.created_at,
-          category: opp.category
+          proposals_count: opp.proposals_count || 0
         }))
-        setOpportunities(recentOpportunities)
-      }
-
-      // Load user proposals
-      const proposalsResponse = await apiService.getUserProposals(user.id)
-      if (proposalsResponse.success && proposalsResponse.data) {
-        const userProposals = proposalsResponse.data.slice(0, 5).map(proposal => ({
-          id: proposal.id,
-          opportunity_title: `Opportunity ${proposal.opportunity_id.slice(0, 8)}`,
-          status: proposal.status as 'pending' | 'accepted' | 'rejected',
-          submitted_at: proposal.created_at,
-          proposed_budget: proposal.proposed_budget
-        }))
-        setProposals(userProposals)
-
-        // Calculate stats
+        
+        setOpportunities(mappedOpportunities)
+        
+        // Mock stats for now
         setStats({
-          totalProposals: proposalsResponse.data.length,
-          acceptedProposals: proposalsResponse.data.filter(p => p.status === 'accepted').length,
-          completedProjects: user.total_jobs_completed || 0,
+          appliedJobs: 12,
+          activeProposals: 8,
+          completedProjects: user.completed_projects || 0,
           totalEarnings: user.total_earnings || 0
         })
       }
@@ -128,19 +115,6 @@ export default function FreelancerDashboard() {
     }).format(amount)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'accepted':
-        return 'bg-green-100 text-green-800'
-      case 'rejected':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   if (!user) {
     return (
       <div className="container py-8">
@@ -156,7 +130,7 @@ export default function FreelancerDashboard() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Freelancer Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user.name}! Find opportunities and grow your career.
+          Welcome back, {user.name}! Find your next opportunity and grow your career.
         </p>
       </div>
 
@@ -169,15 +143,15 @@ export default function FreelancerDashboard() {
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-16">
-          <Link to="/sp/proposals">
-            <FileText className="mr-2 h-5 w-5" />
+          <Link to="/freelancer/proposals">
+            <Briefcase className="mr-2 h-5 w-5" />
             My Proposals
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-16">
-          <Link to="/chat">
-            <MessageSquare className="mr-2 h-5 w-5" />
-            Messages
+          <Link to="/profile">
+            <Users className="mr-2 h-5 w-5" />
+            Edit Profile
           </Link>
         </Button>
       </div>
@@ -186,26 +160,26 @@ export default function FreelancerDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Proposals</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Applied Jobs</CardTitle>
+            <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProposals}</div>
+            <div className="text-2xl font-bold">{stats.appliedJobs}</div>
             <p className="text-xs text-muted-foreground">
-              Proposals submitted
+              Total applications sent
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Accepted Proposals</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Active Proposals</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.acceptedProposals}</div>
+            <div className="text-2xl font-bold">{stats.activeProposals}</div>
             <p className="text-xs text-muted-foreground">
-              Proposals accepted
+              Awaiting client response
             </p>
           </CardContent>
         </Card>
@@ -213,12 +187,12 @@ export default function FreelancerDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completed Projects</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.completedProjects}</div>
             <p className="text-xs text-muted-foreground">
-              Successfully completed
+              Successfully delivered
             </p>
           </CardContent>
         </Card>
@@ -226,129 +200,133 @@ export default function FreelancerDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalEarnings)}</div>
             <p className="text-xs text-muted-foreground">
-              Career earnings
+              Lifetime earnings
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Opportunities */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">Recent Opportunities</h2>
-            <Link to="/opportunities">
-              <Button variant="outline" size="sm">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
-          {isLoading ? (
-            <div>Loading opportunities...</div>
-          ) : opportunities.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-8">
-                <Briefcase className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No opportunities available</h3>
-                <p className="text-muted-foreground">
-                  Check back later for new opportunities.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {opportunities.map((opportunity) => (
-                <Card key={opportunity.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{opportunity.title}</CardTitle>
-                    <CardDescription>
-                      {opportunity.category} • {formatCurrency(opportunity.budget_min)} - {formatCurrency(opportunity.budget_max)}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Posted {formatDate(opportunity.created_at)}
-                      </span>
-                      <Button size="sm" asChild>
-                        <Link to={`/opportunities/${opportunity.id}`}>
-                          View Details
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+      {/* Recent Opportunities */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold">Recent Opportunities</h2>
+          <Link to="/opportunities">
+            <Button variant="outline" size="sm">
+              View All
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
         </div>
-
-        {/* Recent Proposals */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold">Recent Proposals</h2>
-            <Link to="/sp/proposals">
-              <Button variant="outline" size="sm">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
+        {isLoading ? (
+          <div>Loading opportunities...</div>
+        ) : opportunities.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-8">
+              <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No opportunities available</h3>
+              <p className="text-muted-foreground mb-4">
+                Check back soon for new opportunities that match your skills.
+              </p>
+              <Button asChild>
+                <Link to="/opportunities">
+                  <Search className="mr-2 h-4 w-4" />
+                  Browse All Opportunities
+                </Link>
               </Button>
-            </Link>
-          </div>
-          {isLoading ? (
-            <div>Loading proposals...</div>
-          ) : proposals.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-8">
-                <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No proposals yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Start browsing opportunities and submit your first proposal.
-                </p>
-                <Button asChild>
-                  <Link to="/opportunities">
-                    <Search className="mr-2 h-4 w-4" />
-                    Browse Opportunities
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {proposals.map((proposal) => (
-                <Card key={proposal.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{proposal.opportunity_title}</CardTitle>
-                    <CardDescription>
-                      Proposed: {formatCurrency(proposal.proposed_budget)}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Badge className={getStatusColor(proposal.status)}>
-                          {proposal.status}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {opportunities.map((opportunity) => (
+              <Card key={opportunity.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg">{opportunity.title}</CardTitle>
+                      <CardDescription>
+                        {opportunity.description.substring(0, 100)}...
+                      </CardDescription>
+                    </div>
+                    <div className="flex flex-col items-end space-y-1">
+                      <Badge variant={opportunity.type === 'premium' ? 'default' : 'secondary'}>
+                        {opportunity.type}
+                      </Badge>
+                      {opportunity.status === 'active' && (
+                        <Badge variant="outline" className="text-green-600">
+                          Open
                         </Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {formatDate(proposal.submitted_at)}
-                        </span>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <MessageSquare className="h-4 w-4" />
-                      </Button>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center">
+                        <DollarSign className="h-4 w-4 mr-1" />
+                        {formatCurrency(opportunity.budget_min)} - {formatCurrency(opportunity.budget_max)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {opportunity.proposals_count} proposals
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                      <span className="capitalize">{opportunity.category.replace('_', ' ')}</span>
+                      <span>Posted {formatDate(opportunity.created_at)}</span>
+                    </div>
+                  </div>
+                  <div className="flex space-x-2">
+                    <Button size="sm" asChild>
+                      <Link to={`/opportunities/${opportunity.id}`}>
+                        View Details
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to={`/opportunities/${opportunity.id}/apply`}>
+                        Apply Now
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Profile Completion */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Star className="mr-2 h-5 w-5 text-yellow-500" />
+            Boost Your Profile
+          </CardTitle>
+          <CardDescription>
+            Complete your profile to attract more clients and increase your chances of getting hired.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Profile Strength: Good</p>
+              <div className="w-64 bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
+              </div>
+            </div>
+            <Button variant="outline" asChild>
+              <Link to="/profile">
+                Complete Profile
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
