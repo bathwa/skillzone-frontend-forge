@@ -62,7 +62,7 @@ export default function FreelancerDashboard() {
       // Load recent opportunities
       const opportunitiesResponse = await apiService.getOpportunities({
         limit: 5,
-        status: 'open'
+        status: 'active' // Changed from 'open' to 'active'
       })
 
       if (Array.isArray(opportunitiesResponse)) {

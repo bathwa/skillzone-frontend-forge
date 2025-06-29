@@ -78,7 +78,7 @@ export const ClientOpportunities = () => {
     try {
       const response = await apiService.getOpportunities({ 
         client_id: user.id,
-        status: 'open'
+        status: 'active' // Changed from 'open' to 'active'
       })
       
       if (Array.isArray(response)) {
