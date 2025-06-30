@@ -1,11 +1,76 @@
-import React from 'react'
+
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowRight, Shield, Globe, Star, Users, Briefcase, CreditCard } from 'lucide-react'
+import { supabase } from '@/integrations/supabase/client'
+
+interface Testimonial {
+  id: string
+  title: string
+  content: string
+  rating: number
+  user: {
+    first_name: string
+    last_name: string
+    role: string
+    country: string
+  }
+}
 
 export const Landing = () => {
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    loadTestimonials()
+  }, [])
+
+  const loadTestimonials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('testimonials')
+        .select(`
+          id,
+          title,
+          content,
+          rating,
+          profiles!inner (
+            first_name,
+            last_name,
+            role,
+            country
+          )
+        `)
+        .eq('is_approved', true)
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      if (error) throw error
+
+      const formattedTestimonials = data?.map(testimonial => ({
+        id: testimonial.id,
+        title: testimonial.title,
+        content: testimonial.content,
+        rating: testimonial.rating,
+        user: {
+          first_name: testimonial.profiles.first_name || 'Anonymous',
+          last_name: testimonial.profiles.last_name || 'User',
+          role: testimonial.profiles.role || 'User',
+          country: testimonial.profiles.country || 'Unknown'
+        }
+      })) || []
+
+      setTestimonials(formattedTestimonials)
+    } catch (error) {
+      console.error('Error loading testimonials:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const features = [
     {
       icon: Shield,
@@ -14,8 +79,8 @@ export const Landing = () => {
     },
     {
       icon: Globe,
-      title: 'SADC Regional Focus',
-      description: 'Connecting talent across Southern African Development Community countries.',
+      title: 'Global Reach',
+      description: 'Connecting talent and opportunities across multiple countries and regions.',
     },
     {
       icon: Star,
@@ -39,30 +104,6 @@ export const Landing = () => {
     },
   ]
 
-  const testimonials = [
-    {
-      name: 'Sarah M.',
-      role: 'Web Developer',
-      country: 'South Africa',
-      content: 'SkillZone helped me connect with amazing clients across the region. The platform is professional and secure.',
-      rating: 5,
-    },
-    {
-      name: 'David K.',
-      role: 'Business Owner',
-      country: 'Botswana',
-      content: 'Finding quality developers has never been easier. The verification system gives me confidence in hiring.',
-      rating: 5,
-    },
-    {
-      name: 'Amara T.',
-      role: 'Graphic Designer',
-      country: 'Zimbabwe',
-      content: 'The token system is fair and transparent. I love being able to access premium opportunities.',
-      rating: 5,
-    },
-  ]
-
   return (
     <div className="flex-1">
       {/* Hero Section */}
@@ -71,14 +112,14 @@ export const Landing = () => {
         <div className="container py-20 md:py-32 relative">
           <div className="text-center max-w-4xl mx-auto">
             <Badge variant="secondary" className="mb-6">
-              🎉 Now serving 16 SADC countries
+              🎉 Now serving professionals worldwide
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-fade-in">
               Connect. Create. <span className="gradient-text">Collaborate.</span>
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Africa's premier freelance marketplace connecting talented professionals 
-              with meaningful opportunities across the SADC region.
+              The premier freelance marketplace connecting talented professionals 
+              with meaningful opportunities worldwide.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild className="text-lg px-8">
@@ -105,7 +146,7 @@ export const Landing = () => {
               Why Choose SkillZone?
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Built specifically for the African market with features that matter to local professionals
+              Built for professionals with features that matter to growing careers
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -182,24 +223,38 @@ export const Landing = () => {
               Real stories from our growing community
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="border-0 shadow-sm">
-                <CardContent className="pt-6">
-                  <div className="flex mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  </div>
-                  <p className="text-muted-foreground mb-4">"{testimonial.content}"</p>
-                  <div>
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.role} • {testimonial.country}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="text-center">Loading testimonials...</div>
+          ) : testimonials.length === 0 ? (
+            <div className="text-center">
+              <p className="text-muted-foreground mb-4">No testimonials yet. Be the first to share your experience!</p>
+              <Button asChild>
+                <Link to="/signup">Join SkillZone</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {testimonials.map((testimonial) => (
+                <Card key={testimonial.id} className="border-0 shadow-sm">
+                  <CardContent className="pt-6">
+                    <div className="flex mb-4">
+                      {[...Array(testimonial.rating)].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      ))}
+                    </div>
+                    <h4 className="font-semibold mb-2">{testimonial.title}</h4>
+                    <p className="text-muted-foreground mb-4">"{testimonial.content}"</p>
+                    <div>
+                      <p className="font-semibold">{testimonial.user.first_name} {testimonial.user.last_name}</p>
+                      <p className="text-sm text-muted-foreground capitalize">
+                        {testimonial.user.role.replace('_', ' ')} • {testimonial.user.country.replace('_', ' ')}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/authStore'
-import { apiService } from '@/lib/services/apiService'
+import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
 import {
   Briefcase,
@@ -46,7 +47,9 @@ export default function ClientDashboard() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    loadClientData()
+    if (user?.id) {
+      loadClientData()
+    }
   }, [user])
 
   const loadClientData = async () => {
@@ -54,34 +57,48 @@ export default function ClientDashboard() {
 
     setIsLoading(true)
     try {
-      // Load client's opportunities
-      const opportunitiesResponse = await apiService.getOpportunities({
-        limit: 5,
-        status: 'active' // Changed from 'open' to 'active'
-      })
+      // Load client's opportunities from Supabase
+      const { data: opportunitiesData, error: opportunitiesError } = await supabase
+        .from('opportunities')
+        .select('*')
+        .eq('client_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
 
-      if (Array.isArray(opportunitiesResponse)) {
-        // Filter opportunities by client (mock for now)
-        const clientOpportunities = opportunitiesResponse.slice(0, 5).map(opp => ({
-          id: opp.id,
-          title: opp.title,
-          budget_min: opp.budget_min,
-          budget_max: opp.budget_max,
-          status: opp.status === 'open' ? 'active' : opp.status,
-          created_at: opp.created_at,
-          proposals_count: opp.proposals_count || 0
-        }))
-        
-        setOpportunities(clientOpportunities)
-        
-        // Calculate stats
-        setStats({
-          totalOpportunities: clientOpportunities.length,
-          activeOpportunities: clientOpportunities.filter(opp => opp.status === 'active').length,
-          totalProposals: clientOpportunities.reduce((sum, opp) => sum + opp.proposals_count, 0),
-          completedProjects: user.total_jobs_completed || 0
-        })
-      }
+      if (opportunitiesError) throw opportunitiesError
+
+      const mappedOpportunities = opportunitiesData?.map(opp => ({
+        id: opp.id,
+        title: opp.title,
+        budget_min: opp.budget_min || 0,
+        budget_max: opp.budget_max || 0,
+        status: opp.status,
+        created_at: opp.created_at,
+        proposals_count: opp.proposals_count || 0
+      })) || []
+      
+      setOpportunities(mappedOpportunities)
+      
+      // Calculate real stats
+      const totalOpportunities = mappedOpportunities.length
+      const activeOpportunities = mappedOpportunities.filter(opp => opp.status === 'open').length
+      const totalProposals = mappedOpportunities.reduce((sum, opp) => sum + opp.proposals_count, 0)
+      
+      // Get completed projects count
+      const { data: completedProjects, error: projectsError } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', user.id)
+        .eq('status', 'completed')
+
+      if (projectsError) throw projectsError
+
+      setStats({
+        totalOpportunities,
+        activeOpportunities,
+        totalProposals,
+        completedProjects: completedProjects?.length || 0
+      })
       
     } catch (error) {
       console.error('Error loading client data:', error)
@@ -121,7 +138,7 @@ export default function ClientDashboard() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Client Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user.name}! Manage your opportunities and find the perfect talent.
+          Welcome back, {user.first_name || user.email}! Manage your opportunities and find the perfect talent.
         </p>
       </div>
 
@@ -243,7 +260,7 @@ export default function ClientDashboard() {
                         Budget: {formatCurrency(opportunity.budget_min)} - {formatCurrency(opportunity.budget_max)}
                       </CardDescription>
                     </div>
-                    <Badge variant={opportunity.status === 'active' ? 'default' : 'secondary'}>
+                    <Badge variant={opportunity.status === 'open' ? 'default' : 'secondary'}>
                       {opportunity.status}
                     </Badge>
                   </div>

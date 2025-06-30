@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/authStore'
-import { apiService } from '@/lib/services/apiService'
+import { supabase } from '@/integrations/supabase/client'
 import { toast } from 'sonner'
+import { TestimonialForm } from '@/components/TestimonialForm'
 import {
   Search,
   Briefcase,
@@ -51,7 +53,9 @@ export default function FreelancerDashboard() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    loadFreelancerData()
+    if (user?.id) {
+      loadFreelancerData()
+    }
   }, [user])
 
   const loadFreelancerData = async () => {
@@ -59,37 +63,61 @@ export default function FreelancerDashboard() {
 
     setIsLoading(true)
     try {
-      // Load recent opportunities
-      const opportunitiesResponse = await apiService.getOpportunities({
-        limit: 5,
-        status: 'active' // Changed from 'open' to 'active'
-      })
+      // Load recent opportunities from Supabase
+      const { data: opportunitiesData, error: opportunitiesError } = await supabase
+        .from('opportunities')
+        .select('*')
+        .eq('status', 'open')
+        .order('created_at', { ascending: false })
+        .limit(5)
 
-      if (Array.isArray(opportunitiesResponse)) {
-        const mappedOpportunities = opportunitiesResponse.slice(0, 5).map(opp => ({
-          id: opp.id,
-          title: opp.title,
-          description: opp.description,
-          budget_min: opp.budget_min,
-          budget_max: opp.budget_max,
-          category: opp.category,
-          type: opp.type,
-          status: opp.status === 'open' ? 'active' : opp.status,
-          client_country: opp.client_country,
-          created_at: opp.created_at,
-          proposals_count: opp.proposals_count || 0
-        }))
-        
-        setOpportunities(mappedOpportunities)
-        
-        // Mock stats for now
-        setStats({
-          appliedJobs: 12,
-          activeProposals: 8,
-          completedProjects: user.total_jobs_completed || 0,
-          totalEarnings: user.total_earnings || 0
-        })
-      }
+      if (opportunitiesError) throw opportunitiesError
+
+      const mappedOpportunities = opportunitiesData?.map(opp => ({
+        id: opp.id,
+        title: opp.title,
+        description: opp.description,
+        budget_min: opp.budget_min || 0,
+        budget_max: opp.budget_max || 0,
+        category: opp.category,
+        type: opp.type as 'standard' | 'premium',
+        status: opp.status,
+        client_country: opp.client_country,
+        created_at: opp.created_at,
+        proposals_count: opp.proposals_count || 0
+      })) || []
+      
+      setOpportunities(mappedOpportunities)
+      
+      // Get user's proposal stats
+      const { data: proposalsData, error: proposalsError } = await supabase
+        .from('proposals')
+        .select('id, status')
+        .eq('freelancer_id', user.id)
+
+      if (proposalsError) throw proposalsError
+
+      const appliedJobs = proposalsData?.length || 0
+      const activeProposals = proposalsData?.filter(p => p.status === 'pending').length || 0
+
+      // Get completed projects
+      const { data: completedProjects, error: projectsError } = await supabase
+        .from('projects')
+        .select('id, budget')
+        .eq('freelancer_id', user.id)
+        .eq('status', 'completed')
+
+      if (projectsError) throw projectsError
+
+      const completedCount = completedProjects?.length || 0
+      const totalEarnings = completedProjects?.reduce((sum, project) => sum + (project.budget || 0), 0) || 0
+      
+      setStats({
+        appliedJobs,
+        activeProposals,
+        completedProjects: completedCount,
+        totalEarnings
+      })
       
     } catch (error) {
       console.error('Error loading freelancer data:', error)
@@ -129,7 +157,7 @@ export default function FreelancerDashboard() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Freelancer Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user.name}! Find your next opportunity and grow your career.
+          Welcome back, {user.first_name || user.email}! Find your next opportunity and grow your career.
         </p>
       </div>
 
@@ -255,7 +283,7 @@ export default function FreelancerDashboard() {
                       <Badge variant={opportunity.type === 'premium' ? 'default' : 'secondary'}>
                         {opportunity.type}
                       </Badge>
-                      {opportunity.status === 'active' && (
+                      {opportunity.status === 'open' && (
                         <Badge variant="outline" className="text-green-600">
                           Open
                         </Badge>
@@ -296,6 +324,11 @@ export default function FreelancerDashboard() {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Testimonial Form */}
+      <div className="mb-8">
+        <TestimonialForm />
       </div>
 
       {/* Profile Completion */}
