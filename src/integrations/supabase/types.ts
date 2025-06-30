@@ -291,6 +291,7 @@ export type Database = {
           total_jobs_completed: number | null
           updated_at: string
           website: string | null
+          experience_level?: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -313,6 +314,7 @@ export type Database = {
           total_jobs_completed?: number | null
           updated_at?: string
           website?: string | null
+          experience_level?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -335,6 +337,7 @@ export type Database = {
           total_jobs_completed?: number | null
           updated_at?: string
           website?: string | null
+          experience_level?: string | null
         }
         Relationships: []
       }

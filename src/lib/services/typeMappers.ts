@@ -1,4 +1,3 @@
-
 import type { Database } from '@/integrations/supabase/types'
 
 // Database types
@@ -268,6 +267,7 @@ export const mapUserProfileToDbProfile = (profile: Partial<UserProfile>): Partia
     rating_count: profile.reviews_count || null,
     total_jobs_completed: profile.completed_projects || null,
     is_verified: profile.verified || null,
+    experience_level: profile.experience_level || null,
   }
 }
 
