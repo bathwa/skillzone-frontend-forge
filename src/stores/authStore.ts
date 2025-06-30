@@ -104,22 +104,41 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (data.user) {
-            // Wait for the DB trigger to create the profile
-            await new Promise(res => setTimeout(res, 1200))
-            // Fetch the profile to ensure role is set
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', data.user.id)
-              .single()
-            if (profileError) {
-              return { success: true, error: 'Account created, but profile not found. Please contact support.' }
+            // Wait longer for the DB trigger to create the profile with all fields
+            await new Promise(res => setTimeout(res, 2000))
+            
+            // Try multiple times to fetch the profile in case of DB delays
+            let profile = null
+            let attempts = 0
+            const maxAttempts = 3
+            
+            while (!profile && attempts < maxAttempts) {
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', data.user.id)
+                .single()
+              
+              if (!profileError && profileData) {
+                profile = profileData
+                break
+              }
+              
+              attempts++
+              if (attempts < maxAttempts) {
+                await new Promise(res => setTimeout(res, 1000))
+              }
             }
+            
+            if (!profile) {
+              return { success: false, error: 'Account created but profile setup failed. Please try logging in or contact support.' }
+            }
+            
             const extendedUser = transformProfileToUser(profile)
             set({
               user: extendedUser,
-              session: null,
-              isAuthenticated: false,
+              session: data.session,
+              isAuthenticated: !!data.session,
               isLoading: false,
             })
             return { success: true }

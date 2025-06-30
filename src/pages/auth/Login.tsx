@@ -79,10 +79,21 @@ export const Login = () => {
       
       if (result.success) {
         const { user } = useAuthStore.getState()
-        toast.success('Welcome back to SkillZone!')
         
-        // Role-based routing
-        const redirectRoute = getRoleBasedRoute(user?.role || 'freelancer')
+        if (!user) {
+          toast.error('Authentication succeeded but user data not loaded. Please try again.')
+          return
+        }
+        
+        toast.success(`Welcome back to SkillZone!`)
+        
+        // Role-based routing with validation
+        const userRole = user.role
+        const redirectRoute = getRoleBasedRoute(userRole)
+        
+        // Log for debugging
+        console.log('User authenticated with role:', userRole, 'redirecting to:', redirectRoute)
+        
         navigate(redirectRoute)
       } else {
         toast.error(result.error || 'Invalid email or password. Please try again.')

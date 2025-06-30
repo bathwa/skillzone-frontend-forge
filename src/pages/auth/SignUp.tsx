@@ -131,9 +131,12 @@ export const SignUp = () => {
       
       if (result.success) {
         toast.success('Account created successfully! Please check your email to verify your account.')
-        navigate('/login')
+        // Small delay before navigation to ensure the toast shows
+        setTimeout(() => navigate('/login'), 1000)
       } else {
-        toast.error(result.error || 'Failed to create account. Please try again.')
+        const errorMessage = result.error || 'Failed to create account. Please try again.'
+        console.error('Signup failed:', errorMessage)
+        toast.error(errorMessage)
       }
     } catch (error) {
       console.error('Signup error:', error)
