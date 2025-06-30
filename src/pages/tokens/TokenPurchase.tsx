@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -6,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/authStore'
 import { apiService } from '@/lib/services/apiService'
+import { tokenService } from '@/lib/services/tokenService'
 import { TOKEN_PRICING, COUNTRY_CONFIGS } from '@/lib/constants'
 import { toast } from 'sonner'
 import { 
@@ -25,6 +25,7 @@ export const TokenPurchase = () => {
   const navigate = useNavigate()
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
   const [isPurchasing, setIsPurchasing] = useState(false)
+  const [escrowDetails, setEscrowDetails] = useState<any>(null)
 
   const handlePurchase = async (packageType: string) => {
     if (!user?.id) {
@@ -41,11 +42,17 @@ export const TokenPurchase = () => {
     setIsPurchasing(true)
     try {
       // Use the token service to handle purchase
-      const response = await apiService.purchaseTokens(user.id, packageData.tokens, packageType)
-      
+      const response = await tokenService.createTokenPurchase({
+        packageType: packageType as any,
+        paymentMethod: 'escrow',
+      })
+
       if (response.success) {
         toast.success(`Successfully purchased ${packageData.tokens} tokens!`)
-        navigate('/my-tokens')
+        if (response.escrowDetails) {
+          setEscrowDetails(response.escrowDetails)
+        }
+        // navigate('/my-tokens') // Comment out auto-navigation so user can see escrow details
       } else {
         toast.error(response.error || 'Failed to purchase tokens')
       }
@@ -198,6 +205,23 @@ export const TokenPurchase = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Escrow Details */}
+        {escrowDetails && (
+          <div className="mt-8 p-6 bg-muted/50 rounded-lg">
+            <h3 className="font-semibold mb-4">Escrow Payment Details</h3>
+            <div className="space-y-2 text-sm">
+              <p><strong>Account Name:</strong> {escrowDetails.accountName}</p>
+              <p><strong>Account Number:</strong> {escrowDetails.accountNumber}</p>
+              <p><strong>Account Type:</strong> {escrowDetails.accountType}</p>
+              {escrowDetails.provider && <p><strong>Provider:</strong> {escrowDetails.provider}</p>}
+              {escrowDetails.phoneNumber && <p><strong>Phone Number:</strong> {escrowDetails.phoneNumber}</p>}
+              <p><strong>Amount:</strong> ${escrowDetails.amount}</p>
+              <p className="flex items-center"><strong>Reference:</strong> <span className="ml-2 select-all bg-gray-100 px-2 py-1 rounded cursor-pointer" onClick={() => {navigator.clipboard.writeText(escrowDetails.reference); toast.success('Reference copied!')}}>{escrowDetails.reference}</span></p>
+              {escrowDetails.instructions && <pre className="bg-gray-100 p-2 rounded text-xs whitespace-pre-wrap">{escrowDetails.instructions}</pre>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

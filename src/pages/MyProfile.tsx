@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -31,6 +31,7 @@ import {
   Calendar,
   Award
 } from 'lucide-react'
+import { supabase } from '@/integrations/supabase/client'
 
 const profileSchema = z.object({
   first_name: z.string().min(2, 'First name must be at least 2 characters'),
@@ -48,6 +49,8 @@ export const MyProfile = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState<any>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   const {
     register,
@@ -55,6 +58,7 @@ export const MyProfile = () => {
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
   })
@@ -94,6 +98,7 @@ export const MyProfile = () => {
       const response = await apiService.updateUserProfile(user.id, {
         ...data,
         name: `${data.first_name} ${data.last_name}`,
+        avatar_url: avatarUrl || user.avatar_url,
       })
 
       if (response.success && response.data) {
@@ -118,6 +123,31 @@ export const MyProfile = () => {
       case 'senior': return 'Senior (5+ years)'
       case 'expert': return 'Expert (10+ years)'
       default: return level
+    }
+  }
+
+  const handleAvatarClick = () => {
+    if (isEditing && fileInputRef.current) {
+      fileInputRef.current.click()
+    }
+  }
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !user?.id) return
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`
+      const { data, error } = await supabase.storage.from('avatars').upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+      if (error) throw error
+      const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
+      setAvatarUrl(publicUrlData.publicUrl)
+      toast.success('Profile photo uploaded! Save changes to update your profile.')
+    } catch (err) {
+      toast.error('Failed to upload profile photo')
     }
   }
 
@@ -171,20 +201,30 @@ export const MyProfile = () => {
               <CardContent className="pt-6">
                 <div className="flex items-start space-x-6">
                   <div className="relative">
-                    <Avatar className="h-24 w-24">
+                    <Avatar className="h-24 w-24" onClick={handleAvatarClick} style={{ cursor: isEditing ? 'pointer' : 'default' }}>
                       <AvatarImage src={user.avatar_url || undefined} alt={user.name} />
                       <AvatarFallback className="text-2xl">
                         {user.name?.[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
                     {isEditing && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
-                      >
-                        <Camera className="h-4 w-4" />
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                          onClick={handleAvatarClick}
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          ref={fileInputRef}
+                          style={{ display: 'none' }}
+                          onChange={handleAvatarChange}
+                        />
+                      </>
                     )}
                   </div>
                   <div className="flex-1 space-y-4">
@@ -306,7 +346,7 @@ export const MyProfile = () => {
                       <Label htmlFor="country">Country</Label>
                       <Select
                         value={watch('country')}
-                        onValueChange={(value) => reset({ ...watch(), country: value as any })}
+                        onValueChange={(value) => setValue('country', value as any)}
                         disabled={!isEditing}
                       >
                         <SelectTrigger>
@@ -325,7 +365,7 @@ export const MyProfile = () => {
                       <Label htmlFor="experience_level">Experience Level</Label>
                       <Select
                         value={watch('experience_level')}
-                        onValueChange={(value) => reset({ ...watch(), experience_level: value as any })}
+                        onValueChange={(value) => setValue('experience_level', value as any)}
                         disabled={!isEditing}
                       >
                         <SelectTrigger>
