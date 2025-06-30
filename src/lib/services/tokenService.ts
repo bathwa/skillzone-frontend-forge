@@ -126,23 +126,75 @@ export class TokenService {
     transactionId: string,
     country: string
   ): Promise<EscrowPaymentDetails> {
-    // Since escrow_accounts table doesn't exist, return mock data
-    const reference = `TXN-${transactionId.slice(0, 8).toUpperCase()}`
+    try {
+      // Fetch active escrow accounts for the country
+      const { data: escrowAccounts, error } = await supabase
+        .from('escrow_accounts')
+        .select('*')
+        .eq('country', country)
+        .eq('is_active', true)
+        .limit(1)
 
-    return {
-      accountName: 'FreelanceHub Escrow',
-      accountNumber: '1234567890',
-      accountType: 'bank_account',
-      provider: 'Standard Bank',
-      amount,
-      reference,
-      instructions: `1. Transfer R${amount.toFixed(2)} to:
-   Account Name: FreelanceHub Escrow
-   Account Number: 1234567890
-   Bank: Standard Bank
+      if (error) {
+        console.error('Error fetching escrow accounts:', error)
+        throw new Error('Unable to fetch payment details')
+      }
+
+      if (!escrowAccounts || escrowAccounts.length === 0) {
+        throw new Error('No payment methods available for your country')
+      }
+
+      const escrowAccount = escrowAccounts[0]
+      const reference = `TXN-${transactionId.slice(0, 8).toUpperCase()}`
+
+      return {
+        accountName: escrowAccount.account_name,
+        accountNumber: escrowAccount.account_number,
+        accountType: escrowAccount.account_type,
+        provider: escrowAccount.provider || undefined,
+        phoneNumber: escrowAccount.phone_number || undefined,
+        amount,
+        reference,
+        instructions: this.generatePaymentInstructions(escrowAccount, amount, reference),
+      }
+    } catch (error) {
+      console.error('Error creating escrow payment:', error)
+      throw error
+    }
+  }
+
+  // Generate payment instructions based on account type
+  private generatePaymentInstructions(
+    account: any,
+    amount: number,
+    reference: string
+  ): string {
+    const currency = '$' // Default to USD for now
+    
+    if (account.account_type === 'mobile_wallet') {
+      return `1. Send ${currency}${amount.toFixed(2)} via mobile money to:
+   Name: ${account.account_name}
+   Number: ${account.account_number}
+   Providers: ${account.provider || 'Mobile Money'}
 2. Use reference: ${reference}
 3. Send proof of payment to support
-4. Tokens will be credited within 24 hours after payment verification`,
+4. Tokens will be credited within 24 hours after payment verification`
+    } else if (account.account_type === 'bank_account') {
+      return `1. Transfer ${currency}${amount.toFixed(2)} to:
+   Account Name: ${account.account_name}
+   Account Number: ${account.account_number}
+   Bank: ${account.provider || 'Bank Transfer'}
+2. Use reference: ${reference}
+3. Send proof of payment to support
+4. Tokens will be credited within 24 hours after payment verification`
+    } else {
+      return `1. Send ${currency}${amount.toFixed(2)} to:
+   Name: ${account.account_name}
+   Account/Number: ${account.account_number}
+   Provider: ${account.provider || 'Digital Wallet'}
+2. Use reference: ${reference}
+3. Send proof of payment to support
+4. Tokens will be credited within 24 hours after payment verification`
     }
   }
 

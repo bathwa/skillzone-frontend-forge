@@ -45,15 +45,12 @@ export const useAuthStore = create<AuthState>()(
 
       login: async (email: string, password: string) => {
         try {
-          console.log('Attempting login with email:', email)
-          
           const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
           })
 
           if (error) {
-            console.error('Login error:', error)
             return { success: false, error: error.message }
           }
 
@@ -66,7 +63,6 @@ export const useAuthStore = create<AuthState>()(
               .single()
 
             if (profileError) {
-              console.error('Profile fetch error:', profileError)
               return { success: false, error: 'Failed to load user profile' }
             }
 
@@ -78,21 +74,17 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
             })
 
-            console.log('Login successful:', extendedUser)
             return { success: true }
           }
 
           return { success: false, error: 'Login failed' }
         } catch (error) {
-          console.error('Login exception:', error)
           return { success: false, error: 'An unexpected error occurred' }
         }
       },
 
       signup: async (email: string, password: string, userData) => {
         try {
-          console.log('Attempting signup with email:', email)
-          
           const { data, error } = await supabase.auth.signUp({
             email,
             password,
@@ -108,12 +100,10 @@ export const useAuthStore = create<AuthState>()(
           })
 
           if (error) {
-            console.error('Signup error:', error)
             return { success: false, error: error.message }
           }
 
           if (data.user) {
-            console.log('Signup successful, user created:', data.user.id)
             // Wait for the DB trigger to create the profile
             await new Promise(res => setTimeout(res, 1200))
             // Fetch the profile to ensure role is set
@@ -123,7 +113,6 @@ export const useAuthStore = create<AuthState>()(
               .eq('id', data.user.id)
               .single()
             if (profileError) {
-              console.error('Profile fetch after signup error:', profileError)
               return { success: true, error: 'Account created, but profile not found. Please contact support.' }
             }
             const extendedUser = transformProfileToUser(profile)
@@ -138,7 +127,6 @@ export const useAuthStore = create<AuthState>()(
 
           return { success: false, error: 'Signup failed' }
         } catch (error) {
-          console.error('Signup exception:', error)
           return { success: false, error: 'An unexpected error occurred' }
         }
       },
@@ -153,7 +141,7 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           })
         } catch (error) {
-          console.error('Logout error:', error)
+          // Silent error handling for logout
         }
       },
 
@@ -189,7 +177,6 @@ export const useAuthStore = create<AuthState>()(
                 isLoading: false,
               })
             } else {
-              console.error('Profile fetch error:', error)
               set({
                 user: null,
                 session: null,
@@ -206,7 +193,6 @@ export const useAuthStore = create<AuthState>()(
             })
           }
         } catch (error) {
-          console.error('Auth check error:', error)
           set({
             user: null,
             session: null,
