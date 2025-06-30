@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -59,6 +59,7 @@ export const MyProfile = () => {
     reset,
     watch,
     setValue,
+    control,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
   })
@@ -363,21 +364,27 @@ export const MyProfile = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="experience_level">Experience Level</Label>
-                      <Select
-                        value={watch('experience_level')}
-                        onValueChange={(value) => setValue('experience_level', value as any)}
-                        disabled={!isEditing}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select experience level" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="junior">Junior (0-2 years)</SelectItem>
-                          <SelectItem value="mid">Mid-level (3-5 years)</SelectItem>
-                          <SelectItem value="senior">Senior (5+ years)</SelectItem>
-                          <SelectItem value="expert">Expert (10+ years)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Controller
+                        name="experience_level"
+                        control={control}
+                        render={({ field }) => (
+                          <Select
+                            value={field.value}
+                            onValueChange={field.onChange}
+                            disabled={!isEditing}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select experience level" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="junior">Junior (0-2 years)</SelectItem>
+                              <SelectItem value="mid">Mid-level (3-5 years)</SelectItem>
+                              <SelectItem value="senior">Senior (5+ years)</SelectItem>
+                              <SelectItem value="expert">Expert (10+ years)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
                     </div>
                   </div>
 

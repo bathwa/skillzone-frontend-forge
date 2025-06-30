@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ArrowRight, Shield, Globe, Star, Users, Briefcase, CreditCard } from 'lucide-react'
 import { supabase } from '@/integrations/supabase/client'
+import { useAuthStore } from '@/stores/authStore'
 
 interface Testimonial {
   id: string
@@ -21,8 +21,18 @@ interface Testimonial {
 }
 
 export const Landing = () => {
+  const { isAuthenticated, user } = useAuthStore()
+  const navigate = useNavigate()
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Centralized role-based route
+      const route = user.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+      navigate(route, { replace: true })
+    }
+  }, [isAuthenticated, user, navigate])
 
   useEffect(() => {
     loadTestimonials()

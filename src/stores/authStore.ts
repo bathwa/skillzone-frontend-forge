@@ -1,4 +1,3 @@
-
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/integrations/supabase/client'
@@ -115,6 +114,25 @@ export const useAuthStore = create<AuthState>()(
 
           if (data.user) {
             console.log('Signup successful, user created:', data.user.id)
+            // Wait for the DB trigger to create the profile
+            await new Promise(res => setTimeout(res, 1200))
+            // Fetch the profile to ensure role is set
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', data.user.id)
+              .single()
+            if (profileError) {
+              console.error('Profile fetch after signup error:', profileError)
+              return { success: true, error: 'Account created, but profile not found. Please contact support.' }
+            }
+            const extendedUser = transformProfileToUser(profile)
+            set({
+              user: extendedUser,
+              session: null,
+              isAuthenticated: false,
+              isLoading: false,
+            })
             return { success: true }
           }
 
