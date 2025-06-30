@@ -51,7 +51,7 @@ const queryClient = new QueryClient({
 
 const App = () => {
   const [showAuthDebug, setShowAuthDebug] = useState(
-    process.env.NODE_ENV === 'development'
+    import.meta.env.DEV && import.meta.env.MODE === 'development'
   )
 
   return (
