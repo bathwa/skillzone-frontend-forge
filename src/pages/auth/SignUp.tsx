@@ -13,10 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
-import { apiService } from '@/lib/services/apiService'
-import { ProfileSetupWizard } from '@/components/auth/ProfileSetupWizard'
 
-// Admin email detection (same as Login.tsx)
+// Admin email detection
 const ADMIN_EMAILS = ['abathwabiz@gmail.com', 'admin@abathwa.com']
 
 const signUpSchema = z.object({
@@ -61,9 +59,8 @@ const sadcCountries = [
 export const SignUp = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { login } = useAuthStore()
+  const { signup } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
-  const [showProfileSetup, setShowProfileSetup] = useState(false)
   
   const preselectedRole = searchParams.get('role') as 'client' | 'freelancer' | 'service_provider' | null
 
@@ -119,45 +116,24 @@ export const SignUp = () => {
 
   const passwordStrength = getPasswordStrength(password || '')
 
-  const getRoleBasedRoute = (role: string) => {
-    switch (role) {
-      case 'client':
-        return '/dashboard'
-      case 'freelancer':
-        return '/dashboard'
-      default:
-        return '/dashboard'
-    }
-  }
-
   const onSignUpSubmit = async (data: SignUpFormData) => {
     setIsLoading(true)
     
     try {
       console.log('Signup attempt with data:', { ...data, password: '[HIDDEN]' })
       
-      // Real API call to create user account
-      const response = await apiService.signup({
-        email: data.email,
-        password: data.password,
+      const result = await signup(data.email, data.password, {
         first_name: data.name.split(' ')[0],
         last_name: data.name.split(' ').slice(1).join(' '),
         role: data.role,
-        country: data.country as any, // Type assertion for country code
+        country: data.country as any,
       })
       
-      console.log('Signup response:', response)
-      
-      if (response.success && response.data) {
-        console.log('Signup successful, user data:', response.data)
-        login(response.data)
-        toast.success('Account created successfully! Welcome to SkillZone!')
-        
-        // Show profile setup wizard instead of direct routing
-        setShowProfileSetup(true)
+      if (result.success) {
+        toast.success('Account created successfully! Please check your email to verify your account.')
+        navigate('/login')
       } else {
-        console.error('Signup failed:', response.error)
-        toast.error(response.error || 'Failed to create account. Please try again.')
+        toast.error(result.error || 'Failed to create account. Please try again.')
       }
     } catch (error) {
       console.error('Signup error:', error)
@@ -165,20 +141,6 @@ export const SignUp = () => {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const handleProfileSetupComplete = () => {
-    setShowProfileSetup(false)
-    // Navigate to appropriate dashboard based on role
-    const { user } = useAuthStore.getState()
-    if (user) {
-      const redirectRoute = getRoleBasedRoute(user.role)
-      navigate(redirectRoute)
-    }
-  }
-
-  if (showProfileSetup) {
-    return <ProfileSetupWizard onComplete={handleProfileSetupComplete} />
   }
 
   return (

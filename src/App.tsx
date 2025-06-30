@@ -6,6 +6,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { PublicRoute } from "@/components/auth/PublicRoute";
 import { AdminRoute } from "@/components/auth/AdminRoute";
 import { Landing } from "@/pages/Landing";
 import { SignUp } from "@/pages/auth/SignUp";
@@ -45,26 +47,75 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* Public routes (redirect to dashboard if authenticated) */}
+            <Route path="/login" element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } />
+            <Route path="/signup" element={
+              <PublicRoute>
+                <SignUp />
+              </PublicRoute>
+            } />
+            <Route path="/forgot-password" element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            } />
+            
+            {/* Main layout routes */}
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Landing />} />
               <Route path="opportunities" element={<OpportunityList />} />
-              <Route path="opportunities/new" element={<NewOpportunity />} />
               <Route path="skills" element={<SkillProviderList />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="my-profile" element={<MyProfile />} />
-              <Route path="notifications" element={<Notifications />} />
-              <Route path="my-tokens" element={<MyTokens />} />
-              <Route path="client/opportunities" element={<ClientOpportunities />} />
-              <Route path="sp/proposals" element={<MyProposals />} />
-              <Route path="chat" element={<Chat />} />
               <Route path="about" element={<About />} />
               <Route path="contact" element={<Contact />} />
+              <Route path="terms" element={<Terms />} />
+              <Route path="privacy" element={<Privacy />} />
+              
+              {/* Protected routes */}
+              <Route path="opportunities/new" element={
+                <ProtectedRoute requiredRole="client">
+                  <NewOpportunity />
+                </ProtectedRoute>
+              } />
+              <Route path="dashboard" element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="my-profile" element={
+                <ProtectedRoute>
+                  <MyProfile />
+                </ProtectedRoute>
+              } />
+              <Route path="notifications" element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              } />
+              <Route path="my-tokens" element={
+                <ProtectedRoute>
+                  <MyTokens />
+                </ProtectedRoute>
+              } />
+              <Route path="client/opportunities" element={
+                <ProtectedRoute requiredRole="client">
+                  <ClientOpportunities />
+                </ProtectedRoute>
+              } />
+              <Route path="sp/proposals" element={
+                <ProtectedRoute requiredRole="freelancer">
+                  <MyProposals />
+                </ProtectedRoute>
+              } />
+              <Route path="chat" element={
+                <ProtectedRoute>
+                  <Chat />
+                </ProtectedRoute>
+              } />
             </Route>
-            
-            {/* Auth routes (no layout) */}
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<SignUp />} />
             
             {/* Admin routes (no layout) */}
             <Route path="/admin/dashboard" element={
@@ -72,10 +123,6 @@ const App = () => (
                 <AdminDashboard />
               </AdminRoute>
             } />
-            
-            {/* New routes */}
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/privacy" element={<Privacy />} />
             
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />

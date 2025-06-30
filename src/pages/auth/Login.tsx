@@ -9,11 +9,9 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
-import { apiService } from '@/lib/services/apiService'
 import { toast } from 'sonner'
 import { ADMIN_EMAILS, ADMIN_KEY } from '@/lib/constants'
 
-// Form schemas
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -29,8 +27,7 @@ type AdminKeyFormData = z.infer<typeof adminKeySchema>
 export const Login = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [showAdminKey, setShowAdminKey] = useState(false)
-  const [adminEmail, setAdminEmail] = useState('')
-  const [adminPassword, setAdminPassword] = useState('')
+  const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' })
   
   const navigate = useNavigate()
   const { login } = useAuthStore()
@@ -55,7 +52,6 @@ export const Login = () => {
       case 'admin':
         return '/admin/dashboard'
       case 'client':
-        return '/dashboard'
       case 'freelancer':
         return '/dashboard'
       default:
@@ -73,29 +69,23 @@ export const Login = () => {
       if (ADMIN_EMAILS.includes(data.email.toLowerCase())) {
         console.log('Admin email detected, showing admin key form')
         setShowAdminKey(true)
-        setAdminEmail(data.email)
-        setAdminPassword(data.password)
+        setAdminCredentials({ email: data.email, password: data.password })
         setIsLoading(false)
         return
       }
       
-      // Real API call to authenticate user
-      console.log('Attempting regular user login...')
-      const response = await apiService.login(data.email, data.password)
+      // Use direct Supabase authentication
+      const result = await login(data.email, data.password)
       
-      console.log('Login response:', response)
-      
-      if (response.success && response.data) {
-        console.log('Login successful, user data:', response.data)
-        login(response.data)
+      if (result.success) {
+        const { user } = useAuthStore.getState()
         toast.success('Welcome back to SkillZone!')
         
         // Role-based routing
-        const redirectRoute = getRoleBasedRoute(response.data.role)
+        const redirectRoute = getRoleBasedRoute(user?.role || 'freelancer')
         navigate(redirectRoute)
       } else {
-        console.error('Login failed:', response.error)
-        toast.error(response.error || 'Invalid email or password. Please try again.')
+        toast.error(result.error || 'Invalid email or password. Please try again.')
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -116,13 +106,10 @@ export const Login = () => {
         return
       }
       
-      // Use the original password for admin authentication
-      const response = await apiService.login(adminEmail, adminPassword)
+      // Use the original credentials for admin authentication
+      const result = await login(adminCredentials.email, adminCredentials.password)
       
-      if (response.success && response.data) {
-        // Ensure admin role
-        const adminUser = { ...response.data, role: 'admin' as const }
-        login(adminUser)
+      if (result.success) {
         toast.success('Welcome to Admin Dashboard!')
         navigate('/admin/dashboard')
       } else {
@@ -137,8 +124,7 @@ export const Login = () => {
 
   const handleBackToLogin = () => {
     setShowAdminKey(false)
-    setAdminEmail('')
-    setAdminPassword('')
+    setAdminCredentials({ email: '', password: '' })
     adminKeyForm.reset()
   }
 

@@ -2,29 +2,32 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { supabase } from '@/integrations/supabase/client'
+import type { User, Session } from '@supabase/supabase-js'
 import type { Database } from '@/integrations/supabase/types'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
-// Extended user type that matches our frontend expectations
-interface User extends Profile {
+// Extended user type that combines Supabase user with profile data
+interface ExtendedUser extends Profile {
   name: string // Computed from first_name + last_name
   tokens_balance: number // Maps to tokens field
   subscription_tier: 'basic' | 'pro' | 'premium' // Default subscription handling
 }
 
 interface AuthState {
-  user: User | null
-  session: any
+  user: ExtendedUser | null
+  session: Session | null
   isAuthenticated: boolean
-  login: (userData: Partial<User>) => void
-  logout: () => void
-  updateUser: (userData: Partial<User>) => void
+  isLoading: boolean
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  signup: (email: string, password: string, userData: { first_name: string; last_name: string; role: 'client' | 'freelancer'; country: string }) => Promise<{ success: boolean; error?: string }>
+  logout: () => Promise<void>
+  updateUser: (userData: Partial<ExtendedUser>) => void
   checkAuth: () => Promise<void>
 }
 
-// Helper function to transform profile to user
-const transformProfileToUser = (profile: Profile): User => {
+// Helper function to transform profile to extended user
+const transformProfileToUser = (profile: Profile): ExtendedUser => {
   return {
     ...profile,
     name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Anonymous User',
@@ -39,50 +42,104 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       session: null,
       isAuthenticated: false,
+      isLoading: true,
 
-      login: (userData: Partial<User>) => {
-        const user = {
-          id: userData.id || '',
-          email: userData.email || '',
-          first_name: userData.first_name || '',
-          last_name: userData.last_name || '',
-          name: userData.name || `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Anonymous User',
-          role: userData.role || 'freelancer',
-          country: userData.country || null,
-          tokens: typeof userData.tokens === 'number' ? userData.tokens : (userData.tokens_balance || 5),
-          tokens_balance: typeof userData.tokens === 'number' ? userData.tokens : (userData.tokens_balance || 5),
-          subscription_tier: userData.subscription_tier || 'basic',
-          avatar_url: userData.avatar_url || null,
-          bio: userData.bio || null,
-          city: userData.city || null,
-          phone: userData.phone || null,
-          website: userData.website || null,
-          hourly_rate: typeof userData.hourly_rate === 'number' ? userData.hourly_rate : null,
-          total_earnings: typeof userData.total_earnings === 'number' ? userData.total_earnings : 0,
-          total_jobs_completed: typeof userData.total_jobs_completed === 'number' ? userData.total_jobs_completed : 0,
-          rating: typeof userData.rating === 'number' ? userData.rating : 0,
-          rating_count: typeof userData.rating_count === 'number' ? userData.rating_count : 0,
-          is_verified: typeof userData.is_verified === 'boolean' ? userData.is_verified : false,
-          created_at: userData.created_at || new Date().toISOString(),
-          updated_at: userData.updated_at || new Date().toISOString(),
-        } as User
+      login: async (email: string, password: string) => {
+        try {
+          console.log('Attempting login with email:', email)
+          
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          })
 
-        set({
-          user,
-          isAuthenticated: true,
-        })
+          if (error) {
+            console.error('Login error:', error)
+            return { success: false, error: error.message }
+          }
+
+          if (data.user && data.session) {
+            // Fetch user profile
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', data.user.id)
+              .single()
+
+            if (profileError) {
+              console.error('Profile fetch error:', profileError)
+              return { success: false, error: 'Failed to load user profile' }
+            }
+
+            const extendedUser = transformProfileToUser(profile)
+            set({
+              user: extendedUser,
+              session: data.session,
+              isAuthenticated: true,
+              isLoading: false,
+            })
+
+            console.log('Login successful:', extendedUser)
+            return { success: true }
+          }
+
+          return { success: false, error: 'Login failed' }
+        } catch (error) {
+          console.error('Login exception:', error)
+          return { success: false, error: 'An unexpected error occurred' }
+        }
       },
 
-      logout: () => {
-        supabase.auth.signOut()
-        set({
-          user: null,
-          session: null,
-          isAuthenticated: false,
-        })
+      signup: async (email: string, password: string, userData) => {
+        try {
+          console.log('Attempting signup with email:', email)
+          
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                first_name: userData.first_name,
+                last_name: userData.last_name,
+                role: userData.role,
+                country: userData.country,
+              },
+              emailRedirectTo: `${window.location.origin}/dashboard`
+            }
+          })
+
+          if (error) {
+            console.error('Signup error:', error)
+            return { success: false, error: error.message }
+          }
+
+          if (data.user) {
+            console.log('Signup successful, user created:', data.user.id)
+            return { success: true }
+          }
+
+          return { success: false, error: 'Signup failed' }
+        } catch (error) {
+          console.error('Signup exception:', error)
+          return { success: false, error: 'An unexpected error occurred' }
+        }
       },
 
-      updateUser: (userData: Partial<User>) => {
+      logout: async () => {
+        try {
+          await supabase.auth.signOut()
+          set({
+            user: null,
+            session: null,
+            isAuthenticated: false,
+            isLoading: false,
+          })
+        } catch (error) {
+          console.error('Logout error:', error)
+        }
+      },
+
+      updateUser: (userData: Partial<ExtendedUser>) => {
         const currentUser = get().user
         if (currentUser) {
           set({
@@ -93,6 +150,8 @@ export const useAuthStore = create<AuthState>()(
 
       checkAuth: async () => {
         try {
+          set({ isLoading: true })
+          
           const { data: { session } } = await supabase.auth.getSession()
           
           if (session?.user) {
@@ -104,11 +163,12 @@ export const useAuthStore = create<AuthState>()(
               .single()
 
             if (!error && profile) {
-              const user = transformProfileToUser(profile)
+              const extendedUser = transformProfileToUser(profile)
               set({
-                user,
+                user: extendedUser,
                 session,
                 isAuthenticated: true,
+                isLoading: false,
               })
             } else {
               console.error('Profile fetch error:', error)
@@ -116,6 +176,7 @@ export const useAuthStore = create<AuthState>()(
                 user: null,
                 session: null,
                 isAuthenticated: false,
+                isLoading: false,
               })
             }
           } else {
@@ -123,6 +184,7 @@ export const useAuthStore = create<AuthState>()(
               user: null,
               session: null,
               isAuthenticated: false,
+              isLoading: false,
             })
           }
         } catch (error) {
@@ -131,6 +193,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             session: null,
             isAuthenticated: false,
+            isLoading: false,
           })
         }
       },
@@ -138,6 +201,7 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       partialize: (state) => ({
+        // Don't persist session as it should come from Supabase
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),

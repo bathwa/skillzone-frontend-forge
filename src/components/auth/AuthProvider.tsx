@@ -18,7 +18,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.id)
-        await checkAuth()
+        
+        // Use setTimeout to avoid potential recursion issues
+        setTimeout(() => {
+          checkAuth()
+        }, 0)
       }
     )
 
