@@ -16,6 +16,7 @@ import { useThemeStore } from '@/stores/themeStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { Menu, Bell, User, LogOut, Settings, CreditCard, MessageSquare, Briefcase, Star, Shield } from 'lucide-react'
+import { getRoleBasedRoute } from '@/lib/utils'
 
 export const Header = () => {
   const { isAuthenticated, user, logout } = useAuthStore()
@@ -115,7 +116,7 @@ export const Header = () => {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'}>
+                    <Link to={getRoleBasedRoute(user?.role)}>
                       <User className="mr-2 h-4 w-4" />
                       Dashboard
                     </Link>
@@ -226,7 +227,7 @@ export const Header = () => {
                       </div>
                     </div>
                     <Link
-                      to={user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'}
+                      to={getRoleBasedRoute(user?.role)}
                       className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
                       onClick={() => setMobileMenuOpen(false)}
                     >

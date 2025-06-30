@@ -61,56 +61,44 @@ export default function AdminDashboard() {
   const loadAdminData = async () => {
     setIsLoading(true)
     try {
-      // Mock admin data since API methods don't exist yet
-      const mockUsers: User[] = [
-        {
-          id: '1',
-          name: 'John Doe',
-          email: 'john@example.com',
-          role: 'freelancer',
-          country: 'south_africa',
-          created_at: new Date().toISOString(),
-          is_verified: true
-        },
-        {
-          id: '2',
-          name: 'Jane Smith',
-          email: 'jane@example.com',
-          role: 'client',
-          country: 'botswana',
-          created_at: new Date().toISOString(),
-          is_verified: false
-        }
-      ]
+      // Load users from API
+      const usersResponse = await apiService.getProfiles({ limit: 100 })
+      let users: User[] = []
+      if (usersResponse.success && usersResponse.data) {
+        users = usersResponse.data.map((profile: any) => ({
+          id: profile.id,
+          name: profile.name || `${profile.first_name} ${profile.last_name}`,
+          email: profile.email,
+          role: profile.role,
+          country: profile.country,
+          created_at: profile.created_at,
+          is_verified: profile.verified,
+        }))
+      }
 
-      // Load opportunities using existing API
-      const opportunitiesResponse = await apiService.getOpportunities({
-        limit: 10
-      })
-
+      // Load opportunities from API
+      const opportunitiesResponse = await apiService.getOpportunities({ limit: 10 })
       let mappedOpportunities: Opportunity[] = []
-      if (Array.isArray(opportunitiesResponse)) {
-        mappedOpportunities = opportunitiesResponse.map(opp => ({
+      if (opportunitiesResponse.success && opportunitiesResponse.data) {
+        mappedOpportunities = opportunitiesResponse.data.map((opp: any) => ({
           id: opp.id,
           title: opp.title,
           budget_min: opp.budget_min,
           budget_max: opp.budget_max,
           status: opp.status,
           created_at: opp.created_at,
-          client_name: 'Client'
+          client_name: opp.client_name || 'Client',
         }))
       }
 
-      setUsers(mockUsers)
+      setUsers(users)
       setOpportunities(mappedOpportunities)
-      
       setStats({
-        totalUsers: mockUsers.length,
+        totalUsers: users.length,
         totalOpportunities: mappedOpportunities.length,
-        totalRevenue: 15000, // Mock data
-        activeProjects: 8 // Mock data
+        totalRevenue: 0, // TODO: Replace with real revenue if available
+        activeProjects: 0 // TODO: Replace with real active projects if available
       })
-      
     } catch (error) {
       console.error('Error loading admin data:', error)
       toast.error('Failed to load admin data')

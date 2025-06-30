@@ -22,3 +22,16 @@ export function formatDate(dateString: string): string {
     day: 'numeric',
   }).format(date)
 }
+
+export function getRoleBasedRoute(role?: string) {
+  switch (role) {
+    case 'admin':
+      return '/admin/dashboard'
+    case 'client':
+      return '/dashboard'
+    case 'freelancer':
+      return '/dashboard'
+    default:
+      return '/dashboard'
+  }
+}

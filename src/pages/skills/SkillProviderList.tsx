@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -48,46 +47,31 @@ export const SkillProviderList = () => {
   const loadProfiles = async () => {
     setIsLoading(true)
     try {
-      // Mock data for now since getFreelancers doesn't exist in apiService
-      const mockProfiles: Profile[] = [
-        {
-          id: '1',
+      const response = await apiService.getProfiles({ role: 'freelancer', limit: 50 })
+      if (response.success && response.data) {
+        // Map API response to Profile shape
+        const mappedProfiles = response.data.map((profile: any) => ({
+          id: profile.id,
           user: {
-            id: '1',
-            name: 'John Doe',
-            email: 'john@example.com',
-            avatar_url: undefined
+            id: profile.id,
+            name: profile.name || `${profile.first_name} ${profile.last_name}`,
+            email: profile.email,
+            avatar_url: profile.avatar_url,
           },
-          hourly_rate: 50,
-          rating: 4.8,
-          reviews_count: 23,
-          bio: 'Full-stack developer with 5+ years of experience in React and Node.js',
-          city: 'Cape Town',
-          country: 'South Africa',
-          experience_level: 'senior',
-          verified: true,
-          skills: ['React', 'Node.js', 'TypeScript']
-        },
-        {
-          id: '2',
-          user: {
-            id: '2',
-            name: 'Jane Smith',
-            email: 'jane@example.com',
-            avatar_url: undefined
-          },
-          hourly_rate: 35,
-          rating: 4.5,
-          reviews_count: 12,
-          bio: 'UI/UX Designer specializing in modern web interfaces',
-          city: 'Johannesburg',
-          country: 'South Africa',
-          experience_level: 'mid',
-          verified: false,
-          skills: ['Design', 'Figma', 'Adobe Creative Suite']
-        }
-      ]
-      setProfiles(mockProfiles)
+          hourly_rate: profile.hourly_rate,
+          rating: profile.rating,
+          reviews_count: profile.reviews_count,
+          bio: profile.bio,
+          city: profile.city,
+          country: profile.country,
+          experience_level: profile.experience_level || 'mid',
+          verified: profile.verified,
+          skills: profile.skills || [],
+        }))
+        setProfiles(mappedProfiles)
+      } else {
+        setProfiles([])
+      }
     } catch (error) {
       toast.error('Failed to load skill providers')
       setProfiles([])
