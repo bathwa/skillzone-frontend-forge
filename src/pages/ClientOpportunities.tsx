@@ -49,7 +49,8 @@ interface Proposal {
   submitted_at: string
   created_at: string
   updated_at: string
-  freelancer: {
+  freelancer?: {
+    id: string
     name: string
     avatar_url?: string
     rating: number
@@ -77,11 +78,26 @@ export const ClientOpportunities = () => {
     try {
       const response = await apiService.getOpportunities({ 
         client_id: user.id,
-        status: 'active'
+        status: 'active' // Changed from 'open' to 'active'
       })
       
-      if (response.success && response.data) {
-        setOpportunities(response.data)
+      if (Array.isArray(response)) {
+        const mappedOpportunities = response.map(opp => ({
+          id: opp.id,
+          title: opp.title,
+          description: opp.description,
+          budget_min: opp.budget_min,
+          budget_max: opp.budget_max,
+          category: opp.category,
+          type: opp.type,
+          status: opp.status === 'open' ? 'active' as const : 
+                 opp.status === 'in_progress' ? 'in_progress' as const : 'closed' as const,
+          proposals_count: opp.proposals_count,
+          posted_at: opp.created_at,
+          created_at: opp.created_at,
+          updated_at: opp.updated_at
+        }))
+        setOpportunities(mappedOpportunities)
       } else {
         setOpportunities([])
         if (response.error) {
@@ -101,7 +117,29 @@ export const ClientOpportunities = () => {
       const response = await apiService.getUserProposals(user.id)
       
       if (response.success && response.data) {
-        setProposals(response.data)
+        const mappedProposals: Proposal[] = response.data.map(proposal => ({
+          id: proposal.id,
+          opportunity_id: proposal.opportunity_id,
+          freelancer_id: proposal.freelancer_id,
+          client_id: user.id,
+          budget: proposal.proposed_budget || proposal.budget || 0,
+          delivery_time: proposal.estimated_duration || 0,
+          message: proposal.cover_letter,
+          status: proposal.status === 'pending' || proposal.status === 'accepted' || proposal.status === 'rejected' 
+                 ? proposal.status as 'pending' | 'accepted' | 'rejected'
+                 : 'pending' as const,
+          submitted_at: proposal.created_at,
+          created_at: proposal.created_at,
+          updated_at: proposal.updated_at,
+          freelancer: {
+            id: proposal.freelancer_id,
+            name: 'Freelancer', // Would need to fetch from profiles
+            avatar_url: undefined,
+            rating: 0,
+            country: 'south_africa'
+          }
+        }))
+        setProposals(mappedProposals)
       } else {
         setProposals([])
         if (response.error) {
@@ -332,7 +370,7 @@ export const ClientOpportunities = () => {
                             {getOpportunityProposals(opportunity.id).slice(0, 2).map((proposal) => (
                               <div key={proposal.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                                 <div className="flex items-center space-x-3">
-                                  <div className="text-sm font-medium">{proposal.freelancer.name}</div>
+                                  <div className="text-sm font-medium">{proposal.freelancer?.name || 'Freelancer'}</div>
                                   <div className="text-sm text-muted-foreground">
                                     ${proposal.budget} • {proposal.delivery_time} days
                                   </div>
@@ -390,14 +428,14 @@ export const ClientOpportunities = () => {
                           <div className="flex-shrink-0">
                             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                               <span className="text-sm font-medium">
-                                {proposal.freelancer.name[0]}
+                                {proposal.freelancer?.name?.[0] || 'F'}
                               </span>
                             </div>
                           </div>
                           <div>
-                            <h4 className="font-medium">{proposal.freelancer.name}</h4>
+                            <h4 className="font-medium">{proposal.freelancer?.name || 'Freelancer'}</h4>
                             <p className="text-sm text-muted-foreground">
-                              ${proposal.budget} • {proposal.delivery_time} days • {proposal.freelancer.country}
+                              ${proposal.budget} • {proposal.delivery_time} days • {proposal.freelancer?.country || 'Unknown'}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
                               {proposal.message.substring(0, 100)}...
@@ -442,4 +480,4 @@ export const ClientOpportunities = () => {
       </div>
     </div>
   )
-} 
+}

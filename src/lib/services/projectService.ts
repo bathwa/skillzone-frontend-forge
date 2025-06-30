@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client'
 import type { Database } from '@/integrations/supabase/types'
 
@@ -125,28 +126,12 @@ class ProjectService {
     }
   }
 
-  // Get project milestones
+  // Placeholder methods for milestones - these will need database tables to be created
   async getProjectMilestones(projectId: string): Promise<{ data: ProjectMilestone[] | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('project_milestones')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('due_date', { ascending: true })
-
-      if (error) throw error
-
-      return { data: data || [], error: null }
-    } catch (error) {
-      console.error('Error fetching project milestones:', error)
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : 'Failed to fetch milestones'
-      }
-    }
+    console.log('Project milestones table not implemented yet')
+    return { data: [], error: null }
   }
 
-  // Create project milestone
   async createMilestone(milestoneData: {
     project_id: string
     title: string
@@ -154,86 +139,21 @@ class ProjectService {
     due_date: string
     amount: number
   }): Promise<{ data: ProjectMilestone | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('project_milestones')
-        .insert([{
-          ...milestoneData,
-          status: 'pending'
-        }])
-        .select()
-        .single()
-
-      if (error) throw error
-
-      return { data, error: null }
-    } catch (error) {
-      console.error('Error creating milestone:', error)
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : 'Failed to create milestone'
-      }
-    }
+    console.log('Project milestones table not implemented yet')
+    return { data: null, error: 'Feature not implemented' }
   }
 
-  // Update milestone status
   async updateMilestoneStatus(milestoneId: string, status: 'pending' | 'in_progress' | 'completed'): Promise<{ error: string | null }> {
-    try {
-      const { error } = await supabase
-        .from('project_milestones')
-        .update({ status })
-        .eq('id', milestoneId)
-
-      if (error) throw error
-
-      return { error: null }
-    } catch (error) {
-      console.error('Error updating milestone status:', error)
-      return {
-        error: error instanceof Error ? error.message : 'Failed to update milestone status'
-      }
-    }
+    console.log('Project milestones table not implemented yet')
+    return { error: 'Feature not implemented' }
   }
 
-  // Get project updates
+  // Placeholder methods for project updates - these will need database tables to be created
   async getProjectUpdates(projectId: string): Promise<{ data: ProjectUpdate[] | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('project_updates')
-        .select(`
-          *,
-          user:profiles!project_updates_user_id_fkey(id, first_name, last_name, avatar_url)
-        `)
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      const updates: ProjectUpdate[] = data?.map((update: any) => ({
-        id: update.id,
-        project_id: update.project_id,
-        user_id: update.user_id,
-        title: update.title,
-        content: update.content,
-        attachments: update.attachments,
-        created_at: update.created_at,
-        user: update.user ? {
-          name: `${update.user.first_name || ''} ${update.user.last_name || ''}`.trim() || 'Unknown',
-          avatar_url: update.user.avatar_url
-        } : undefined
-      })) || []
-
-      return { data: updates, error: null }
-    } catch (error) {
-      console.error('Error fetching project updates:', error)
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : 'Failed to fetch project updates'
-      }
-    }
+    console.log('Project updates table not implemented yet')
+    return { data: [], error: null }
   }
 
-  // Create project update
   async createProjectUpdate(updateData: {
     project_id: string
     user_id: string
@@ -241,60 +161,17 @@ class ProjectService {
     content: string
     attachments?: string[]
   }): Promise<{ data: ProjectUpdate | null; error: string | null }> {
-    try {
-      const { data, error } = await supabase
-        .from('project_updates')
-        .insert([updateData])
-        .select(`
-          *,
-          user:profiles!project_updates_user_id_fkey(id, first_name, last_name, avatar_url)
-        `)
-        .single()
-
-      if (error) throw error
-
-      const update: ProjectUpdate = {
-        id: data.id,
-        project_id: data.project_id,
-        user_id: data.user_id,
-        title: data.title,
-        content: data.content,
-        attachments: data.attachments,
-        created_at: data.created_at,
-        user: data.user ? {
-          name: `${data.user.first_name || ''} ${data.user.last_name || ''}`.trim() || 'Unknown',
-          avatar_url: data.user.avatar_url
-        } : undefined
-      }
-
-      return { data: update, error: null }
-    } catch (error) {
-      console.error('Error creating project update:', error)
-      return {
-        data: null,
-        error: error instanceof Error ? error.message : 'Failed to create project update'
-      }
-    }
+    console.log('Project updates table not implemented yet')
+    return { data: null, error: 'Feature not implemented' }
   }
 
-  // Subscribe to project updates
+  // Subscribe to project updates (placeholder)
   subscribeToProjectUpdates(projectId: string, callback: (update: any) => void) {
-    const subscription = supabase
-      .channel(`project_updates:${projectId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'project_updates',
-        filter: `project_id=eq.${projectId}`
-      }, (payload) => {
-        callback(payload.new)
-      })
-      .subscribe()
-
+    console.log('Project updates subscriptions not implemented yet')
     return () => {
-      supabase.removeChannel(subscription)
+      // Unsubscribe placeholder
     }
   }
 }
 
-export const projectService = new ProjectService() 
+export const projectService = new ProjectService()

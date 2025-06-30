@@ -1,328 +1,204 @@
-import { useState } from 'react'
+
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { useToast } from '@/hooks/use-toast'
 import { useAuthStore } from '@/stores/authStore'
-import { tokenService } from '@/lib/services/tokenService'
-import { countryService } from '@/lib/services/countryService'
-import { TOKEN_PRICING } from '@/lib/constants'
+import { apiService } from '@/lib/services/apiService'
+import { TOKEN_PRICING, COUNTRY_CONFIGS } from '@/lib/constants'
+import { toast } from 'sonner'
 import { 
   CreditCard, 
-  DollarSign, 
+  ArrowLeft, 
   CheckCircle, 
-  Copy, 
-  ExternalLink,
-  Phone,
-  Mail,
-  MessageCircle
+  Package,
+  DollarSign,
+  ArrowRight,
+  Star,
+  Shield,
+  Clock
 } from 'lucide-react'
-import { apiService } from '@/lib/services/apiService'
-import { useNavigate } from 'react-router-dom'
 
-export default function TokenPurchase() {
-  const { user, updateUser } = useAuthStore()
-  const { toast } = useToast()
-  const [selectedPackage, setSelectedPackage] = useState<keyof typeof TOKEN_PRICING | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [escrowDetails, setEscrowDetails] = useState<any>(null)
-  const [transactionId, setTransactionId] = useState<string | null>(null)
+export const TokenPurchase = () => {
+  const { user } = useAuthStore()
   const navigate = useNavigate()
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null)
+  const [isPurchasing, setIsPurchasing] = useState(false)
 
-  const userCountry = countryService.getUserCountry()
-  const countryConfig = countryService.getCountryConfig()
-  const supportContacts = countryService.getSupportContacts()
-
-  const handlePackageSelect = (packageType: keyof typeof TOKEN_PRICING) => {
-    setSelectedPackage(packageType)
-    setEscrowDetails(null)
-    setTransactionId(null)
-  }
-
-  const handlePurchase = async (packageType: keyof typeof TOKEN_PRICING) => {
+  const handlePurchase = async (packageType: string) => {
     if (!user?.id) {
       toast.error('Please log in to purchase tokens')
       return
     }
 
-    setIsProcessing(true)
+    const packageData = TOKEN_PRICING[packageType as keyof typeof TOKEN_PRICING]
+    if (!packageData) {
+      toast.error('Invalid package selected')
+      return
+    }
+
+    setIsPurchasing(true)
     try {
-      const packageData = TOKEN_PRICING[packageType]
+      // Use the token service to handle purchase
       const response = await apiService.purchaseTokens(user.id, packageData.tokens, packageType)
       
-      if (response.success && response.data) {
+      if (response.success) {
         toast.success(`Successfully purchased ${packageData.tokens} tokens!`)
-        // Update user token balance in store
-        const newBalance = (user.tokens_balance || 0) + packageData.tokens
-        updateUser({ tokens_balance: newBalance })
         navigate('/my-tokens')
       } else {
         toast.error(response.error || 'Failed to purchase tokens')
       }
     } catch (error) {
-      toast.error('Failed to process purchase')
+      console.error('Purchase error:', error)
+      toast.error('Failed to purchase tokens')
     } finally {
-      setIsProcessing(false)
+      setIsPurchasing(false)
     }
   }
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
-    toast({
-      title: 'Copied',
-      description: `${label} copied to clipboard`,
-    })
+  const getCountryConfig = () => {
+    return COUNTRY_CONFIGS[user?.country || 'zimbabwe']
   }
 
-  const openWhatsApp = (number: string) => {
-    const message = `Hi, I need help with my token purchase. Transaction ID: ${transactionId}`
-    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`
-    window.open(url, '_blank')
-  }
-
-  const openEmail = (email: string) => {
-    const subject = 'Token Purchase Support'
-    const body = `Hi, I need help with my token purchase.\n\nTransaction ID: ${transactionId}\n\nPlease assist me.`
-    const url = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-    window.open(url)
+  if (!user) {
+    return (
+      <div className="container py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Please log in to purchase tokens</h1>
+          <Button onClick={() => navigate('/login')}>
+            Go to Login
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-3xl font-bold">Purchase Tokens</h1>
-        <p className="text-muted-foreground">
-          Buy tokens to access premium features and submit proposals
-        </p>
-      </div>
-
-      {/* Current Balance */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <DollarSign className="h-5 w-5" />
-            <span>Current Balance</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
-            {user?.tokens || 0} Tokens
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Available for opportunities and proposals
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Token Packages */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Object.entries(TOKEN_PRICING).map(([key, packageData]) => (
-          <Card 
-            key={key}
-            className={`cursor-pointer transition-all ${
-              selectedPackage === key 
-                ? 'ring-2 ring-primary border-primary' 
-                : 'hover:shadow-md'
-            }`}
-            onClick={() => handlePackageSelect(key as keyof typeof TOKEN_PRICING)}
-          >
-            <CardHeader className="text-center">
-              <CardTitle className="text-lg">{packageData.tokens} Tokens</CardTitle>
-              <CardDescription>{packageData.description}</CardDescription>
-            </CardHeader>
-            <CardContent className="text-center">
-              <div className="text-2xl font-bold text-primary">
-                {countryConfig.currency_symbol}{packageData.price_usd}
-              </div>
-              {selectedPackage === key && (
-                <CheckCircle className="h-6 w-6 text-green-500 mx-auto mt-2" />
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Purchase Button */}
-      {selectedPackage && (
-        <div className="text-center">
-          <Button 
-            onClick={() => handlePurchase(selectedPackage as keyof typeof TOKEN_PRICING)} 
-            disabled={isProcessing}
-            size="lg"
-            className="px-8"
-          >
-            {isProcessing ? 'Processing...' : `Purchase ${TOKEN_PRICING[selectedPackage].tokens} Tokens`}
+    <div className="container py-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/my-tokens')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to My Tokens
           </Button>
         </div>
-      )}
 
-      {/* Escrow Payment Instructions */}
-      {escrowDetails && (
-        <Card className="border-green-200 bg-green-50">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold">Purchase Tokens</h1>
+          <p className="text-xl text-muted-foreground">
+            Choose the perfect package for your needs
+          </p>
+        </div>
+
+        {/* Token Packages */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Object.entries(TOKEN_PRICING).map(([key, packageData]) => (
+            <Card 
+              key={key}
+              className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                selectedPackage === key ? 'ring-2 ring-primary' : ''
+              }`}
+              onClick={() => setSelectedPackage(key)}
+            >
+              <CardHeader className="text-center pb-4">
+                <Package className="h-8 w-8 mx-auto mb-2 text-primary" />
+                <CardTitle className="text-lg capitalize">{key}</CardTitle>
+                <CardDescription>{packageData.description}</CardDescription>
+              </CardHeader>
+              <CardContent className="text-center space-y-4">
+                <div>
+                  <div className="text-3xl font-bold text-primary">
+                    {packageData.tokens}
+                  </div>
+                  <div className="text-sm text-muted-foreground">tokens</div>
+                </div>
+                <div className="text-2xl font-bold">
+                  ${packageData.price_usd}
+                </div>
+                <Button 
+                  className="w-full"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handlePurchase(key)
+                  }}
+                  disabled={isPurchasing}
+                >
+                  {isPurchasing ? (
+                    'Processing...'
+                  ) : (
+                    <>
+                      Purchase
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Features */}
+        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-green-800">
-              <CreditCard className="h-5 w-5" />
-              <span>Payment Instructions</span>
-            </CardTitle>
-            <CardDescription className="text-green-700">
-              Follow these steps to complete your token purchase
+            <CardTitle>Why Purchase Tokens?</CardTitle>
+            <CardDescription>
+              Unlock premium features and maximize your opportunities
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Transaction Details */}
-            <div className="bg-white p-4 rounded-lg border">
-              <h3 className="font-semibold mb-2">Transaction Details</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Transaction ID:</span>
-                  <span className="font-mono">{transactionId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Amount:</span>
-                  <span>{countryConfig.currency_symbol}{escrowDetails.amount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Reference:</span>
-                  <span className="font-mono">{escrowDetails.reference}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Account */}
-            <div className="bg-white p-4 rounded-lg border">
-              <h3 className="font-semibold mb-2">Payment Account</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Account Name:</span>
-                  <span>{escrowDetails.accountName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Account Number:</span>
-                  <span className="font-mono">{escrowDetails.accountNumber}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Account Type:</span>
-                  <span className="capitalize">{escrowDetails.accountType.replace('_', ' ')}</span>
-                </div>
-                {escrowDetails.provider && (
-                  <div className="flex justify-between">
-                    <span>Provider:</span>
-                    <span>{escrowDetails.provider}</span>
-                  </div>
-                )}
-                {escrowDetails.phoneNumber && (
-                  <div className="flex justify-between">
-                    <span>Phone:</span>
-                    <span>{escrowDetails.phoneNumber}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Instructions */}
-            <div className="bg-white p-4 rounded-lg border">
-              <h3 className="font-semibold mb-2">Payment Steps</h3>
-              <div className="space-y-2 text-sm">
-                {escrowDetails.instructions.split('\n').map((instruction: string, index: number) => (
-                  <div key={index} className="flex items-start space-x-2">
-                    <span className="text-primary font-bold">{index + 1}.</span>
-                    <span>{instruction}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Support Contacts */}
-            {supportContacts.length > 0 && (
-              <div className="bg-white p-4 rounded-lg border">
-                <h3 className="font-semibold mb-2">Need Help?</h3>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Contact our support team for assistance with your payment
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center space-y-2">
+                <Star className="h-8 w-8 mx-auto text-yellow-500" />
+                <h3 className="font-semibold">Access Premium Jobs</h3>
+                <p className="text-sm text-muted-foreground">
+                  Apply to high-value opportunities before others
                 </p>
-                <div className="space-y-2">
-                  {supportContacts.map((contact, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4" />
-                        <span className="text-sm">{contact.phone}</span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyToClipboard(contact.phone, 'Phone number')}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  {supportContacts.map((contact, index) => (
-                    <div key={`email-${index}`} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <Mail className="h-4 w-4" />
-                        <span className="text-sm">{contact.email}</span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openEmail(contact.email)}
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  {supportContacts.map((contact, index) => (
-                    <div key={`whatsapp-${index}`} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <MessageCircle className="h-4 w-4" />
-                        <span className="text-sm">WhatsApp</span>
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openWhatsApp(contact.whatsapp.replace('wa.me/', ''))}
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
               </div>
-            )}
+              <div className="text-center space-y-2">
+                <Shield className="h-8 w-8 mx-auto text-green-500" />
+                <h3 className="font-semibold">Secure Payments</h3>
+                <p className="text-sm text-muted-foreground">
+                  All transactions are protected by our escrow system
+                </p>
+              </div>
+              <div className="text-center space-y-2">
+                <Clock className="h-8 w-8 mx-auto text-blue-500" />
+                <h3 className="font-semibold">Instant Activation</h3>
+                <p className="text-sm text-muted-foreground">
+                  Tokens are added to your account immediately
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Payment Methods Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Methods</CardTitle>
-          <CardDescription>
-            Currently available payment options for {countryConfig.name}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <CreditCard className="h-5 w-5 text-primary" />
+        {/* Payment Info */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment Information</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-semibold">Escrow Payment</h4>
+                <h3 className="font-semibold mb-2">Your Location</h3>
                 <p className="text-sm text-muted-foreground">
-                  Secure manual payment through our escrow accounts. 
-                  Tokens are credited within 24 hours after payment verification.
+                  Country: {getCountryConfig()?.name}<br />
+                  Currency: {getCountryConfig()?.currency} ({getCountryConfig()?.currency_symbol})
+                </p>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Payment Method</h3>
+                <p className="text-sm text-muted-foreground">
+                  Secure escrow payment system<br />
+                  Multiple payment options available
                 </p>
               </div>
             </div>
-            <Separator />
-            <div className="text-sm text-muted-foreground">
-              <p>• Payment verification typically takes 24 hours</p>
-              <p>• Always include the reference number in your payment</p>
-              <p>• Keep proof of payment for verification</p>
-              <p>• Contact support if you need assistance</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
-} 
+}

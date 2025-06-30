@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -9,13 +10,11 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { toast } from 'sonner'
-import { apiService } from '@/lib/services/apiService'
 
-// Admin email detection (same as Login.tsx)
+// Admin email detection
 const ADMIN_EMAILS = ['abathwabiz@gmail.com', 'admin@abathwa.com']
 
 const signUpSchema = z.object({
@@ -60,7 +59,7 @@ const sadcCountries = [
 export const SignUp = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { login } = useAuthStore()
+  const { signup } = useAuthStore()
   const [isLoading, setIsLoading] = useState(false)
   
   const preselectedRole = searchParams.get('role') as 'client' | 'freelancer' | 'service_provider' | null
@@ -123,26 +122,18 @@ export const SignUp = () => {
     try {
       console.log('Signup attempt with data:', { ...data, password: '[HIDDEN]' })
       
-      // Real API call to create user account
-      const response = await apiService.signup({
-        email: data.email,
-        password: data.password,
+      const result = await signup(data.email, data.password, {
         first_name: data.name.split(' ')[0],
         last_name: data.name.split(' ').slice(1).join(' '),
         role: data.role,
-        country: data.country as any, // Type assertion for country code
+        country: data.country as any,
       })
       
-      console.log('Signup response:', response)
-      
-      if (response.success && response.data) {
-        console.log('Signup successful, user data:', response.data)
-        login(response.data)
-        toast.success('Account created successfully! Welcome to SkillZone!')
-        navigate('/dashboard')
+      if (result.success) {
+        toast.success('Account created successfully! Please check your email to verify your account.')
+        navigate('/login')
       } else {
-        console.error('Signup failed:', response.error)
-        toast.error(response.error || 'Failed to create account. Please try again.')
+        toast.error(result.error || 'Failed to create account. Please try again.')
       }
     } catch (error) {
       console.error('Signup error:', error)
