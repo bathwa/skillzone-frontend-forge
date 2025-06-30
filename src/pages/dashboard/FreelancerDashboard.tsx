@@ -17,7 +17,8 @@ import {
   ArrowRight,
   TrendingUp,
   Users,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-react'
 
 interface Opportunity {
@@ -42,7 +43,7 @@ interface FreelancerStats {
 }
 
 export default function FreelancerDashboard() {
-  const { user } = useAuthStore()
+  const { user, isLoading: authLoading } = useAuthStore()
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [stats, setStats] = useState<FreelancerStats>({
     appliedJobs: 0,
@@ -51,19 +52,22 @@ export default function FreelancerDashboard() {
     totalEarnings: 0
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user?.id) {
+    if (!authLoading && user?.id) {
       loadFreelancerData()
     }
-  }, [user])
+  }, [user, authLoading])
 
   const loadFreelancerData = async () => {
     if (!user?.id) return
 
     setIsLoading(true)
+    setError(null)
+    
     try {
-      // Load recent opportunities from Supabase
+      // Load recent opportunities
       const { data: opportunitiesData, error: opportunitiesError } = await supabase
         .from('opportunities')
         .select('*')
@@ -71,18 +75,21 @@ export default function FreelancerDashboard() {
         .order('created_at', { ascending: false })
         .limit(5)
 
-      if (opportunitiesError) throw opportunitiesError
+      if (opportunitiesError) {
+        console.error('Opportunities error:', opportunitiesError)
+        throw new Error('Failed to load opportunities')
+      }
 
       const mappedOpportunities = opportunitiesData?.map(opp => ({
         id: opp.id,
         title: opp.title,
-        description: opp.description,
+        description: opp.description || '',
         budget_min: opp.budget_min || 0,
         budget_max: opp.budget_max || 0,
-        category: opp.category,
-        type: opp.type as 'standard' | 'premium',
+        category: opp.category || 'other',
+        type: (opp.type as 'standard' | 'premium') || 'standard',
         status: opp.status,
-        client_country: opp.client_country,
+        client_country: opp.client_country || '',
         created_at: opp.created_at,
         proposals_count: opp.proposals_count || 0
       })) || []
@@ -95,7 +102,10 @@ export default function FreelancerDashboard() {
         .select('id, status')
         .eq('freelancer_id', user.id)
 
-      if (proposalsError) throw proposalsError
+      if (proposalsError) {
+        console.error('Proposals error:', proposalsError)
+        // Don't throw, just use default values
+      }
 
       const appliedJobs = proposalsData?.length || 0
       const activeProposals = proposalsData?.filter(p => p.status === 'pending').length || 0
@@ -107,7 +117,10 @@ export default function FreelancerDashboard() {
         .eq('freelancer_id', user.id)
         .eq('status', 'completed')
 
-      if (projectsError) throw projectsError
+      if (projectsError) {
+        console.error('Projects error:', projectsError)
+        // Don't throw, just use default values
+      }
 
       const completedCount = completedProjects?.length || 0
       const totalEarnings = completedProjects?.reduce((sum, project) => sum + (project.budget || 0), 0) || 0
@@ -119,8 +132,9 @@ export default function FreelancerDashboard() {
         totalEarnings
       })
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading freelancer data:', error)
+      setError(error.message || 'Failed to load dashboard data')
       toast.error('Failed to load dashboard data')
     } finally {
       setIsLoading(false)
@@ -142,9 +156,36 @@ export default function FreelancerDashboard() {
     }).format(amount)
   }
 
+  // Show loading state
+  if (authLoading || isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading dashboard...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4 text-red-600">Dashboard Error</h1>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={loadFreelancerData}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!user) {
     return (
-      <div className="container py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Please log in to view your dashboard</h1>
         </div>
@@ -170,13 +211,13 @@ export default function FreelancerDashboard() {
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-16">
-          <Link to="/freelancer/proposals">
+          <Link to="/sp/proposals">
             <Briefcase className="mr-2 h-5 w-5" />
             My Proposals
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-16">
-          <Link to="/profile">
+          <Link to="/my-profile">
             <Users className="mr-2 h-5 w-5" />
             Edit Profile
           </Link>
@@ -249,9 +290,8 @@ export default function FreelancerDashboard() {
             </Button>
           </Link>
         </div>
-        {isLoading ? (
-          <div>Loading opportunities...</div>
-        ) : opportunities.length === 0 ? (
+        
+        {opportunities.length === 0 ? (
           <Card>
             <CardContent className="text-center py-8">
               <Search className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -351,7 +391,7 @@ export default function FreelancerDashboard() {
               </div>
             </div>
             <Button variant="outline" asChild>
-              <Link to="/profile">
+              <Link to="/my-profile">
                 Complete Profile
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

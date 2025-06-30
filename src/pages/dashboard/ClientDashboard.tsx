@@ -15,7 +15,8 @@ import {
   ArrowRight,
   Plus,
   Eye,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from 'lucide-react'
 
 interface Opportunity {
@@ -36,7 +37,7 @@ interface ClientStats {
 }
 
 export default function ClientDashboard() {
-  const { user } = useAuthStore()
+  const { user, isLoading: authLoading } = useAuthStore()
   const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [stats, setStats] = useState<ClientStats>({
     totalOpportunities: 0,
@@ -45,19 +46,22 @@ export default function ClientDashboard() {
     completedProjects: 0
   })
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (user?.id) {
+    if (!authLoading && user?.id) {
       loadClientData()
     }
-  }, [user])
+  }, [user, authLoading])
 
   const loadClientData = async () => {
     if (!user?.id) return
 
     setIsLoading(true)
+    setError(null)
+    
     try {
-      // Load client's opportunities from Supabase
+      // Load client's opportunities
       const { data: opportunitiesData, error: opportunitiesError } = await supabase
         .from('opportunities')
         .select('*')
@@ -65,7 +69,10 @@ export default function ClientDashboard() {
         .order('created_at', { ascending: false })
         .limit(5)
 
-      if (opportunitiesError) throw opportunitiesError
+      if (opportunitiesError) {
+        console.error('Opportunities error:', opportunitiesError)
+        throw new Error('Failed to load opportunities')
+      }
 
       const mappedOpportunities = opportunitiesData?.map(opp => ({
         id: opp.id,
@@ -79,7 +86,7 @@ export default function ClientDashboard() {
       
       setOpportunities(mappedOpportunities)
       
-      // Calculate real stats
+      // Calculate stats
       const totalOpportunities = mappedOpportunities.length
       const activeOpportunities = mappedOpportunities.filter(opp => opp.status === 'open').length
       const totalProposals = mappedOpportunities.reduce((sum, opp) => sum + opp.proposals_count, 0)
@@ -91,7 +98,10 @@ export default function ClientDashboard() {
         .eq('client_id', user.id)
         .eq('status', 'completed')
 
-      if (projectsError) throw projectsError
+      if (projectsError) {
+        console.error('Projects error:', projectsError)
+        // Don't throw here, just use 0 for completed projects
+      }
 
       setStats({
         totalOpportunities,
@@ -100,8 +110,9 @@ export default function ClientDashboard() {
         completedProjects: completedProjects?.length || 0
       })
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading client data:', error)
+      setError(error.message || 'Failed to load dashboard data')
       toast.error('Failed to load dashboard data')
     } finally {
       setIsLoading(false)
@@ -123,9 +134,36 @@ export default function ClientDashboard() {
     }).format(amount)
   }
 
+  // Show loading state
+  if (authLoading || isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span className="ml-2">Loading dashboard...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4 text-red-600">Dashboard Error</h1>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={loadClientData}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!user) {
     return (
-      <div className="container py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Please log in to view your dashboard</h1>
         </div>
@@ -230,9 +268,8 @@ export default function ClientDashboard() {
             </Button>
           </Link>
         </div>
-        {isLoading ? (
-          <div>Loading opportunities...</div>
-        ) : opportunities.length === 0 ? (
+        
+        {opportunities.length === 0 ? (
           <Card>
             <CardContent className="text-center py-8">
               <Briefcase className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
