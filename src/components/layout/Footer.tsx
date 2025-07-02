@@ -12,7 +12,7 @@ export const Footer = () => {
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-lg">S</span>
               </div>
-              <span className="font-bold text-xl gradient-text">SkillZone</span>
+              <span className="font-bold text-xl gradient-text">SkillsPortal</span>
             </Link>
             <p className="text-muted-foreground text-sm max-w-md">
               Connecting talented professionals with meaningful opportunities across the SADC region. 
@@ -41,7 +41,7 @@ export const Footer = () => {
         </div>
         
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} SkillZone. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} SkillsPortal. All rights reserved.</p>
         </div>
       </div>
     </footer>

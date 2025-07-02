@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -51,7 +52,7 @@ export const Header = () => {
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-lg">S</span>
           </div>
-          <span className="font-bold text-xl gradient-text">SkillZone</span>
+          <span className="font-bold text-xl gradient-text">SkillsPortal</span>
         </Link>
 
         {/* Desktop Navigation */}
@@ -136,12 +137,20 @@ export const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                   {user?.role === 'client' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/client/opportunities">
-                        <Briefcase className="mr-2 h-4 w-4" />
-                        My Opportunities
-                      </Link>
-                    </DropdownMenuItem>
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/client/opportunities">
+                          <Briefcase className="mr-2 h-4 w-4" />
+                          My Opportunities
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/subscriptions">
+                          <Star className="mr-2 h-4 w-4" />
+                          Subscriptions
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
                   )}
                   {user?.role === 'freelancer' && (
                     <DropdownMenuItem asChild>
@@ -155,6 +164,12 @@ export const Header = () => {
                     <Link to="/my-tokens">
                       <CreditCard className="mr-2 h-4 w-4" />
                       My Tokens
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/feedback">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Feedback
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -260,6 +275,13 @@ export const Header = () => {
                           {unreadCount}
                         </Badge>
                       )}
+                    </Link>
+                    <Link
+                      to="/feedback"
+                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Feedback
                     </Link>
                     <button
                       onClick={() => {

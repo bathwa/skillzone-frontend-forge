@@ -20,10 +20,10 @@ export const Landing = () => {
             </Badge>
             <h1 className="text-4xl md:text-6xl font-bold mb-6">
               Connect with Top{' '}
-              <span className="text-primary">Freelancers</span> in Southern Africa
+              <span className="text-primary">Professionals</span> in Southern Africa
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              SkillZone is the premier platform connecting businesses with skilled professionals across Southern Africa. Find the perfect talent for your projects or discover exciting opportunities as a freelancer.
+              SkillsPortal is the premier platform connecting businesses with skilled professionals across Southern Africa. Find the perfect talent for your projects or discover exciting opportunities as a freelancer.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>
@@ -44,12 +44,12 @@ export const Landing = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white dark:bg-background">
         <div className="container">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="text-center">
               <div className="text-3xl font-bold text-primary mb-2">1,000+</div>
-              <div className="text-muted-foreground">Active Freelancers</div>
+              <div className="text-muted-foreground">Active Professionals</div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-primary mb-2">500+</div>
@@ -68,16 +68,16 @@ export const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-gray-50 dark:bg-secondary/20">
         <div className="container">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Why Choose SkillZone?</h2>
+            <h2 className="text-3xl font-bold mb-4">Why Choose SkillsPortal?</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
               We provide the tools and platform you need to succeed in the digital economy
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card>
+            <Card className="hover-scale border-0 shadow-md">
               <CardHeader>
                 <Shield className="h-8 w-8 text-primary mb-2" />
                 <CardTitle>Secure & Trusted</CardTitle>
@@ -86,7 +86,7 @@ export const Landing = () => {
                 </CardDescription>
               </CardHeader>
             </Card>
-            <Card>
+            <Card className="hover-scale border-0 shadow-md">
               <CardHeader>
                 <Globe className="h-8 w-8 text-primary mb-2" />
                 <CardTitle>Local Focus</CardTitle>
@@ -95,12 +95,12 @@ export const Landing = () => {
                 </CardDescription>
               </CardHeader>
             </Card>
-            <Card>
+            <Card className="hover-scale border-0 shadow-md">
               <CardHeader>
                 <Zap className="h-8 w-8 text-primary mb-2" />
-                <CardTitle>Fast Matching</CardTitle>
+                <CardTitle>Smart Matching</CardTitle>
                 <CardDescription>
-                  Our smart matching algorithm connects you with the right talent or opportunities quickly
+                  Our intelligent algorithm connects you with the right talent or opportunities quickly
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -115,7 +115,7 @@ export const Landing = () => {
       <FreelancerShowcase />
 
       {/* How it Works */}
-      <section className="py-16 bg-white">
+      <section className="py-16 bg-white dark:bg-background">
         <div className="container">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold mb-4">How It Works</h2>
@@ -149,7 +149,7 @@ export const Landing = () => {
                   <div>
                     <h4 className="font-medium">Review Proposals</h4>
                     <p className="text-sm text-muted-foreground">
-                      Get proposals from qualified freelancers
+                      Get proposals from qualified professionals
                     </p>
                   </div>
                 </div>
@@ -160,18 +160,18 @@ export const Landing = () => {
                   <div>
                     <h4 className="font-medium">Hire & Collaborate</h4>
                     <p className="text-sm text-muted-foreground">
-                      Work with your chosen freelancer to complete the project
+                      Work with your chosen professional to complete the project
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* For Freelancers */}
+            {/* For Professionals */}
             <div>
               <h3 className="text-xl font-semibold mb-6 flex items-center">
                 <Users className="mr-2 h-5 w-5" />
-                For Freelancers
+                For Professionals
               </h3>
               <div className="space-y-4">
                 <div className="flex items-start space-x-4">
@@ -218,7 +218,7 @@ export const Landing = () => {
         <div className="container text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Get Started?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Join thousands of professionals already using SkillZone
+            Join thousands of professionals already using SkillsPortal
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" asChild>

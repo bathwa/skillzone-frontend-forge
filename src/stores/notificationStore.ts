@@ -6,8 +6,8 @@ interface Notification {
   title: string
   message: string
   type: 'info' | 'success' | 'warning' | 'error'
-  read_at?: Date
-  created_at: Date
+  read_at?: string
+  created_at: string
 }
 
 interface NotificationState {
@@ -15,41 +15,61 @@ interface NotificationState {
   addNotification: (notification: Omit<Notification, 'id' | 'created_at'>) => void
   markAsRead: (id: string) => void
   markAllAsRead: () => void
-  removeNotification: (id: string) => void
   getUnreadCount: () => number
+  clearNotifications: () => void
 }
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
-  notifications: [],
-  addNotification: (notification) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: crypto.randomUUID(),
-      created_at: new Date(),
+  notifications: [
+    {
+      id: '1',
+      title: 'Welcome to SkillsPortal',
+      message: 'Your account has been successfully created. Start exploring opportunities!',
+      type: 'success',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: '2',
+      title: 'New Opportunity Match',
+      message: 'We found 3 new opportunities that match your skills.',
+      type: 'info',
+      created_at: new Date().toISOString()
     }
+  ],
+  
+  addNotification: (notification) =>
     set((state) => ({
-      notifications: [newNotification, ...state.notifications]
-    }))
-  },
-  markAsRead: (id) => 
+      notifications: [
+        {
+          ...notification,
+          id: Math.random().toString(36).substr(2, 9),
+          created_at: new Date().toISOString()
+        },
+        ...state.notifications
+      ]
+    })),
+  
+  markAsRead: (id) =>
     set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read_at: new Date() } : n
+      notifications: state.notifications.map((notif) =>
+        notif.id === id
+          ? { ...notif, read_at: new Date().toISOString() }
+          : notif
       )
     })),
+  
   markAllAsRead: () =>
     set((state) => ({
-      notifications: state.notifications.map((n) => ({
-        ...n,
-        read_at: n.read_at || new Date()
+      notifications: state.notifications.map((notif) => ({
+        ...notif,
+        read_at: notif.read_at || new Date().toISOString()
       }))
     })),
-  removeNotification: (id) =>
-    set((state) => ({
-      notifications: state.notifications.filter((n) => n.id !== id)
-    })),
+  
   getUnreadCount: () => {
     const { notifications } = get()
-    return notifications.filter((n) => !n.read_at).length
+    return notifications.filter((notif) => !notif.read_at).length
   },
+  
+  clearNotifications: () => set({ notifications: [] })
 }))

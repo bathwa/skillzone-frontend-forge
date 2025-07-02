@@ -31,6 +31,8 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import { Terms } from "@/pages/Terms";
 import { Privacy } from "@/pages/Privacy";
+import { Subscriptions } from "@/pages/Subscriptions";
+import { Feedback } from "@/pages/Feedback";
 import { useState } from "react";
 
 const queryClient = new QueryClient({
@@ -114,6 +116,16 @@ const App = () => {
                   <Route path="my-tokens" element={
                     <ProtectedRoute>
                       <MyTokens />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="subscriptions" element={
+                    <ProtectedRoute>
+                      <Subscriptions />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="feedback" element={
+                    <ProtectedRoute>
+                      <Feedback />
                     </ProtectedRoute>
                   } />
                   <Route path="client/opportunities" element={
