@@ -62,7 +62,7 @@ export class ProfileService {
       }
 
       if (filters?.country && filters.country !== 'all') {
-        query = query.eq('country', filters.country)
+        query = query.eq('country', filters.country as Database['public']['Enums']['country_code'])
       }
 
       if (filters?.limit) {

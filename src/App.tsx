@@ -17,7 +17,7 @@ import { Login } from "@/pages/auth/Login";
 import { ForgotPassword } from "@/pages/auth/ForgotPassword";
 import { OpportunityList } from "@/pages/opportunities/OpportunityList";
 import NewOpportunity from "@/pages/opportunities/NewOpportunity";
-import { SkillProviderList } from "@/pages/skills/SkillProviderList";
+import SkillProviderList from "@/pages/skills/SkillProviderList";
 import Dashboard from "@/pages/dashboard/Dashboard";
 import { MyProfile } from "@/pages/MyProfile";
 import { Notifications } from "@/pages/Notifications";
