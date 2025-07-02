@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { opportunityService } from '@/lib/services/opportunityService'
@@ -10,6 +11,7 @@ type Proposal = Database['public']['Tables']['proposals']['Row']
 
 export interface OpportunityWithClient extends Opportunity {
   profiles: Database['public']['Tables']['profiles']['Row']
+  client_name: string
 }
 
 export interface CreateOpportunityRequest {
@@ -45,18 +47,18 @@ export const useOpportunities = (filters?: {
     queryKey: ['opportunities', userCountry, filters],
     queryFn: async () => {
       // Try cache first
-      const cachedData = cacheService.get<OpportunityWithClient[]>('opportunities', cacheKey)
+      const cachedData = cacheService.get<{ opportunities: OpportunityWithClient[]; total: number }>('opportunities', cacheKey)
       if (cachedData) {
         return cachedData
       }
 
       // Fetch from service
-      const opportunities = await opportunityService.getOpportunities(filters)
+      const result = await opportunityService.getOpportunities(filters)
       
       // Cache the result
-      cacheService.set('opportunities', cacheKey, opportunities)
+      cacheService.set('opportunities', cacheKey, result)
       
-      return opportunities
+      return result
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
@@ -199,7 +201,7 @@ export const useAcceptProposal = () => {
     mutationFn: async (proposalId: string) => {
       return await opportunityService.acceptProposal(proposalId)
     },
-    onSuccess: (result, proposalId) => {
+    onSuccess: (result) => {
       if (result.success) {
         // Invalidate all related queries
         queryClient.invalidateQueries({ queryKey: ['proposals'] })
@@ -236,20 +238,17 @@ export const useOpportunitiesLegacy = () => {
         .from('opportunities')
         .select(`
           *,
-          profiles!opportunities_client_id_fkey (
-            id,
-            first_name,
-            last_name,
-            avatar_url,
-            country,
-            rating
-          )
+          profiles!opportunities_client_id_fkey (*)
         `)
         .eq('status', 'open')
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      return data as OpportunityWithClient[]
+      
+      return (data || []).map(opp => ({
+        ...opp,
+        client_name: `${opp.profiles?.first_name || ''} ${opp.profiles?.last_name || ''}`.trim() || 'Anonymous Client'
+      })) as OpportunityWithClient[]
     },
   })
 }

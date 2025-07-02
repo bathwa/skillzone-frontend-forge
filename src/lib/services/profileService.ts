@@ -5,6 +5,9 @@ import type { Database } from '@/integrations/supabase/types'
 type Profile = Database['public']['Tables']['profiles']['Row']
 type UserSkill = Database['public']['Tables']['user_skills']['Row'] & {
   skills: Database['public']['Tables']['skills']['Row']
+  created_at: string
+  skill_id: string
+  user_id: string
 }
 type Portfolio = Database['public']['Tables']['portfolios']['Row']
 
@@ -42,6 +45,9 @@ export class ProfileService {
             id,
             level,
             years_experience,
+            created_at,
+            skill_id,
+            user_id,
             skills (
               id,
               name,
@@ -57,7 +63,8 @@ export class ProfileService {
       }
 
       if (filters?.country && filters.country !== 'all') {
-        query = query.eq('country', filters.country)
+        const countryCode = filters.country as Database['public']['Enums']['country_code']
+        query = query.eq('country', countryCode)
       }
 
       if (filters?.limit) {
@@ -75,7 +82,13 @@ export class ProfileService {
       return (data || []).map(profile => ({
         ...profile,
         name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Anonymous User',
-        skills: profile.user_skills?.map(us => us.skills?.name || '').filter(Boolean) || []
+        skills: profile.user_skills?.map(us => us.skills?.name || '').filter(Boolean) || [],
+        user_skills: profile.user_skills?.map(us => ({
+          ...us,
+          created_at: us.created_at || new Date().toISOString(),
+          skill_id: us.skill_id || '',
+          user_id: us.user_id || profile.id
+        })) || []
       }))
     } catch (error) {
       console.error('Error in getFreelancerProfiles:', error)
@@ -93,6 +106,9 @@ export class ProfileService {
             id,
             level,
             years_experience,
+            created_at,
+            skill_id,
+            user_id,
             skills (
               id,
               name,
@@ -112,7 +128,13 @@ export class ProfileService {
       return {
         ...data,
         name: `${data.first_name || ''} ${data.last_name || ''}`.trim() || 'Anonymous User',
-        skills: data.user_skills?.map(us => us.skills?.name || '').filter(Boolean) || []
+        skills: data.user_skills?.map(us => us.skills?.name || '').filter(Boolean) || [],
+        user_skills: data.user_skills?.map(us => ({
+          ...us,
+          created_at: us.created_at || new Date().toISOString(),
+          skill_id: us.skill_id || '',
+          user_id: us.user_id || data.id
+        })) || []
       }
     } catch (error) {
       console.error('Error in getProfile:', error)
