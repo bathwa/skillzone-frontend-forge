@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -7,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { useAuthStore } from '@/stores/authStore'
-import { apiService } from '@/lib/services/apiService'
+import { opportunityService } from '@/lib/services/opportunityService'
 import { OPPORTUNITY_CATEGORIES, COUNTRY_CONFIGS } from '@/lib/constants'
 import { toast } from 'sonner'
 import { Search, Filter, MapPin, DollarSign, Clock, Star, Users, Briefcase } from 'lucide-react'
@@ -21,10 +22,11 @@ interface Opportunity {
   category: string
   type: 'standard' | 'premium'
   client_country: string
-  skills: string[]
-  posted_at: string
+  required_skills: string[]
+  created_at: string
   proposals_count: number
-  status: 'active' | 'closed' | 'in_progress'
+  status: 'open' | 'in_progress' | 'completed' | 'cancelled'
+  client_name: string
 }
 
 const countries = [
@@ -64,7 +66,7 @@ export const OpportunityList = () => {
       const filters: any = {
         page: currentPage,
         limit: 10,
-        status: 'active'
+        status: 'open'
       }
 
       if (selectedCategory !== 'all') {
@@ -77,22 +79,12 @@ export const OpportunityList = () => {
         filters.type = selectedType
       }
 
-      const response = await apiService.getOpportunities(filters)
+      const response = await opportunityService.getOpportunities(filters)
       
-      if (response.success && response.data) {
-        setOpportunities(response.data)
-        setTotalPages(response.pagination?.totalPages || 1)
-      } else {
-        // Show empty state instead of mock data
-        setOpportunities([])
-        setTotalPages(1)
-        if (response.error) {
-          toast.error(response.error)
-        }
-      }
+      setOpportunities(response.opportunities)
+      setTotalPages(Math.ceil(response.total / 10))
     } catch (error) {
       toast.error('Failed to load opportunities')
-      // Show empty state instead of mock data
       setOpportunities([])
       setTotalPages(1)
     } finally {
@@ -103,7 +95,7 @@ export const OpportunityList = () => {
   const filteredOpportunities = opportunities.filter(opportunity => {
     const matchesSearch = opportunity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          opportunity.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         opportunity.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
+                         opportunity.required_skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesBudget = opportunity.budget_min >= budgetRange[0] && opportunity.budget_max <= budgetRange[1]
 
@@ -347,7 +339,7 @@ export const OpportunityList = () => {
                             </div>
                             <div className="flex items-center">
                               <Clock className="mr-1 h-4 w-4" />
-                              Posted {formatDate(opportunity.posted_at)}
+                              Posted {formatDate(opportunity.created_at)}
                             </div>
                             <div className="flex items-center">
                               <Users className="mr-1 h-4 w-4" />
@@ -356,14 +348,14 @@ export const OpportunityList = () => {
                           </div>
 
                           <div className="flex flex-wrap gap-2">
-                            {opportunity.skills.slice(0, 4).map((skill) => (
+                            {opportunity.required_skills.slice(0, 4).map((skill) => (
                               <Badge key={skill} variant="outline" className="text-xs">
                                 {skill}
                               </Badge>
                             ))}
-                            {opportunity.skills.length > 4 && (
+                            {opportunity.required_skills.length > 4 && (
                               <Badge variant="outline" className="text-xs">
-                                +{opportunity.skills.length - 4} more
+                                +{opportunity.required_skills.length - 4} more
                               </Badge>
                             )}
                           </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -5,34 +6,40 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { apiService } from '@/lib/services/apiService'
+import { profileService } from '@/lib/services/profileService'
+import { COUNTRY_CONFIGS } from '@/lib/constants'
 import { toast } from 'sonner'
 import { Search, MapPin, Star, DollarSign, Filter } from 'lucide-react'
 
 interface Profile {
   id: string
-  user: {
-    id: string
-    name: string
-    email: string
-    avatar_url?: string
-  }
+  name: string
+  email: string
+  avatar_url?: string
   hourly_rate?: number
   rating?: number
-  reviews_count?: number
+  rating_count?: number
   bio?: string
   city?: string
   country: string
   experience_level: 'junior' | 'mid' | 'senior' | 'expert'
-  verified?: boolean
+  is_verified?: boolean
   skills: string[]
 }
+
+const countries = [
+  { value: 'all', label: 'All Countries' },
+  ...Object.entries(COUNTRY_CONFIGS).map(([code, config]) => ({
+    value: code,
+    label: config.name
+  }))
+]
 
 export const SkillProviderList = () => {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedSkill, setSelectedSkill] = useState('all')
+  const [selectedCountry, setSelectedCountry] = useState('all')
   const [experienceFilter, setExperienceFilter] = useState('all')
   const [isLoading, setIsLoading] = useState(true)
 
@@ -42,36 +49,13 @@ export const SkillProviderList = () => {
 
   useEffect(() => {
     filterProfiles()
-  }, [profiles, searchTerm, selectedSkill, experienceFilter])
+  }, [profiles, searchTerm, selectedCountry, experienceFilter])
 
   const loadProfiles = async () => {
     setIsLoading(true)
     try {
-      const response = await apiService.getProfiles({ role: 'freelancer', limit: 50 })
-      if (response.success && response.data) {
-        // Map API response to Profile shape
-        const mappedProfiles = response.data.map((profile: any) => ({
-          id: profile.id,
-          user: {
-            id: profile.id,
-            name: profile.name || `${profile.first_name} ${profile.last_name}`,
-            email: profile.email,
-            avatar_url: profile.avatar_url,
-          },
-          hourly_rate: profile.hourly_rate,
-          rating: profile.rating,
-          reviews_count: profile.reviews_count,
-          bio: profile.bio,
-          city: profile.city,
-          country: profile.country,
-          experience_level: profile.experience_level || 'mid',
-          verified: profile.verified,
-          skills: profile.skills || [],
-        }))
-        setProfiles(mappedProfiles)
-      } else {
-        setProfiles([])
-      }
+      const response = await profileService.getFreelancerProfiles({ limit: 50 })
+      setProfiles(response)
     } catch (error) {
       toast.error('Failed to load skill providers')
       setProfiles([])
@@ -86,21 +70,20 @@ export const SkillProviderList = () => {
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(profile =>
-        profile.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        profile.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         profile.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         profile.skills.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase()))
       )
     }
 
+    // Filter by country
+    if (selectedCountry !== 'all') {
+      filtered = filtered.filter(profile => profile.country === selectedCountry)
+    }
+
     // Filter by experience level
     if (experienceFilter !== 'all') {
-      filtered = filtered.filter(profile => {
-        if (experienceFilter === 'junior' && profile.experience_level === 'junior') return true
-        if (experienceFilter === 'mid' && profile.experience_level === 'mid') return true
-        if (experienceFilter === 'senior' && profile.experience_level === 'senior') return true
-        if (experienceFilter === 'expert' && profile.experience_level === 'expert') return true
-        return false
-      })
+      filtered = filtered.filter(profile => profile.experience_level === experienceFilter)
     }
 
     setFilteredProfiles(filtered)
@@ -121,6 +104,10 @@ export const SkillProviderList = () => {
       style: 'currency',
       currency: 'USD'
     }).format(amount)
+  }
+
+  const getCountryName = (countryCode: string) => {
+    return COUNTRY_CONFIGS[countryCode as keyof typeof COUNTRY_CONFIGS]?.name || countryCode
   }
 
   return (
@@ -158,6 +145,22 @@ export const SkillProviderList = () => {
               </div>
               
               <div className="space-y-2">
+                <label className="text-sm font-medium">Country</label>
+                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All countries" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map((country) => (
+                      <SelectItem key={country.value} value={country.value}>
+                        {country.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Experience Level</label>
                 <Select value={experienceFilter} onValueChange={setExperienceFilter}>
                   <SelectTrigger>
@@ -169,23 +172,6 @@ export const SkillProviderList = () => {
                     <SelectItem value="mid">Mid-level</SelectItem>
                     <SelectItem value="senior">Senior</SelectItem>
                     <SelectItem value="expert">Expert</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Skill Category</label>
-                <Select value={selectedSkill} onValueChange={setSelectedSkill}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All skills" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Skills</SelectItem>
-                    <SelectItem value="web_development">Web Development</SelectItem>
-                    <SelectItem value="mobile_development">Mobile Development</SelectItem>
-                    <SelectItem value="design">Design</SelectItem>
-                    <SelectItem value="marketing">Marketing</SelectItem>
-                    <SelectItem value="writing">Writing</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -238,15 +224,15 @@ export const SkillProviderList = () => {
                   <CardContent className="pt-6">
                     <div className="flex items-center space-x-4 mb-4">
                       <Avatar className="h-12 w-12">
-                        <AvatarImage src={profile.user.avatar_url} alt={profile.user.name} />
+                        <AvatarImage src={profile.avatar_url} alt={profile.name} />
                         <AvatarFallback>
-                          {profile.user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          {profile.name.split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
-                          <h3 className="font-semibold">{profile.user.name}</h3>
-                          {profile.verified && (
+                          <h3 className="font-semibold">{profile.name}</h3>
+                          {profile.is_verified && (
                             <Badge variant="secondary" className="text-xs">
                               Verified
                             </Badge>
@@ -255,12 +241,12 @@ export const SkillProviderList = () => {
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                           <div className="flex items-center">
                             <MapPin className="h-3 w-3 mr-1" />
-                            {profile.city || 'Location not set'}
+                            {profile.city ? `${profile.city}, ${getCountryName(profile.country)}` : getCountryName(profile.country)}
                           </div>
                           {profile.rating && (
                             <div className="flex items-center">
                               <Star className="h-3 w-3 mr-1 fill-yellow-400 text-yellow-400" />
-                              {profile.rating.toFixed(1)} ({profile.reviews_count || 0})
+                              {profile.rating.toFixed(1)} ({profile.rating_count || 0})
                             </div>
                           )}
                         </div>
