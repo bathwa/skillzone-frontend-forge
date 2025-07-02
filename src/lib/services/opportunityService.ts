@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client'
 import type { Database } from '@/integrations/supabase/types'
 
@@ -46,7 +45,7 @@ export class OpportunityService {
     category?: string
     budget_min?: number
     budget_max?: number
-    type?: 'standard' | 'premium'
+    type?: 'standard' | 'premium' | 'all'
     limit?: number
     offset?: number
   }): Promise<{ opportunities: OpportunityWithClient[]; total: number }> {
@@ -69,7 +68,7 @@ export class OpportunityService {
       }
 
       if (filters?.type && filters.type !== 'all') {
-        query = query.eq('type', filters.type)
+        query = query.eq('type', filters.type as 'standard' | 'premium')
       }
 
       if (filters?.budget_min) {
