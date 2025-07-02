@@ -1,8 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client'
-import { useAuthStore } from '@/stores/authStore'
-import { countryService } from './countryService'
-import { tokenService } from './tokenService'
 import type { Database } from '@/integrations/supabase/types'
 
 type Opportunity = Database['public']['Tables']['opportunities']['Row']
@@ -50,9 +47,8 @@ export class OpportunityService {
     budget_min?: number
     budget_max?: number
     type?: 'standard' | 'premium'
-    country?: string
     limit?: number
-    page?: number
+    offset?: number
   }): Promise<{ opportunities: OpportunityWithClient[]; total: number }> {
     try {
       let query = supabase
@@ -62,11 +58,9 @@ export class OpportunityService {
           profiles!opportunities_client_id_fkey (*)
         `, { count: 'exact' })
 
-      // Apply filters
       if (filters?.status) {
         query = query.eq('status', filters.status)
       } else {
-        // Default to open opportunities for public viewing
         query = query.eq('status', 'open')
       }
 
@@ -74,9 +68,8 @@ export class OpportunityService {
         query = query.eq('category', filters.category)
       }
 
-      if (filters?.country && filters.country !== 'all') {
-        const countryCode = filters.country as Database['public']['Enums']['country_code']
-        query = query.eq('client_country', countryCode)
+      if (filters?.type && filters.type !== 'all') {
+        query = query.eq('type', filters.type)
       }
 
       if (filters?.budget_min) {
@@ -87,17 +80,15 @@ export class OpportunityService {
         query = query.lte('budget_max', filters.budget_max)
       }
 
-      if (filters?.type && filters.type !== 'all') {
-        query = query.eq('type', filters.type)
+      if (filters?.limit) {
+        query = query.limit(filters.limit)
       }
 
-      // Pagination
-      const limit = filters?.limit || 10
-      const page = filters?.page || 1
-      const offset = (page - 1) * limit
+      if (filters?.offset) {
+        query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1)
+      }
 
       const { data, error, count } = await query
-        .range(offset, offset + limit - 1)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -108,9 +99,12 @@ export class OpportunityService {
       const opportunities = (data || []).map(opp => ({
         ...opp,
         client_name: `${opp.profiles?.first_name || ''} ${opp.profiles?.last_name || ''}`.trim() || 'Anonymous Client'
-      }))
+      })) as OpportunityWithClient[]
 
-      return { opportunities, total: count || 0 }
+      return {
+        opportunities,
+        total: count || 0
+      }
     } catch (error) {
       console.error('Error in getOpportunities:', error)
       return { opportunities: [], total: 0 }
@@ -136,100 +130,46 @@ export class OpportunityService {
       return {
         ...data,
         client_name: `${data.profiles?.first_name || ''} ${data.profiles?.last_name || ''}`.trim() || 'Anonymous Client'
-      }
+      } as OpportunityWithClient
     } catch (error) {
       console.error('Error in getOpportunity:', error)
       return null
     }
   }
 
-  async createOpportunity(request: CreateOpportunityRequest): Promise<{
-    success: boolean
-    opportunityId?: string
-    error?: string
-  }> {
+  async createOpportunity(request: CreateOpportunityRequest): Promise<{ success: boolean; error?: string; id?: string }> {
     try {
-      const { user } = useAuthStore.getState()
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      if (user.role !== 'client') {
-        throw new Error('Only clients can create opportunities')
-      }
-
-      // Check if user has enough tokens
-      const tokenCost = request.type === 'premium' ? 2 : 1
-      const userBalance = await tokenService.getUserTokenBalance(user.id)
-      
-      if (userBalance < tokenCost) {
-        throw new Error(`Insufficient tokens. Required: ${tokenCost}, Available: ${userBalance}`)
-      }
-
-      // Create opportunity
-      const { data: opportunity, error: opportunityError } = await supabase
+      const { data, error } = await supabase
         .from('opportunities')
         .insert({
-          client_id: user.id,
           title: request.title,
           description: request.description,
           category: request.category,
           budget_min: request.budget_min,
           budget_max: request.budget_max,
           type: request.type,
-          status: 'open',
-          client_country: (user.country || 'south_africa') as Database['public']['Enums']['country_code'],
           deadline: request.deadline,
           required_skills: request.required_skills,
+          client_id: '', // This should be set by the caller
+          client_country: 'zimbabwe' // Default, should be set by the caller
         })
         .select()
         .single()
 
-      if (opportunityError) {
-        throw opportunityError
+      if (error) {
+        console.error('Error creating opportunity:', error)
+        return { success: false, error: error.message }
       }
 
-      // Debit tokens
-      const debitResult = await tokenService.debitTokens(
-        user.id,
-        tokenCost,
-        `Opportunity creation: ${request.title}`,
-        opportunity.id
-      )
-
-      if (!debitResult.success) {
-        // Rollback opportunity creation
-        await supabase
-          .from('opportunities')
-          .delete()
-          .eq('id', opportunity.id)
-        
-        throw new Error(debitResult.error)
-      }
-
-      return {
-        success: true,
-        opportunityId: opportunity.id,
-      }
+      return { success: true, id: data.id }
     } catch (error) {
-      console.error('Create opportunity error:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      console.error('Error in createOpportunity:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 
-  async updateOpportunity(id: string, updates: Partial<CreateOpportunityRequest>): Promise<{
-    success: boolean
-    error?: string
-  }> {
+  async updateOpportunity(id: string, updates: Partial<CreateOpportunityRequest>): Promise<{ success: boolean; error?: string }> {
     try {
-      const { user } = useAuthStore.getState()
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       const { error } = await supabase
         .from('opportunities')
         .update({
@@ -237,49 +177,35 @@ export class OpportunityService {
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
-        .eq('client_id', user.id) // Ensure user owns the opportunity
 
       if (error) {
-        throw error
+        console.error('Error updating opportunity:', error)
+        return { success: false, error: error.message }
       }
 
       return { success: true }
     } catch (error) {
-      console.error('Update opportunity error:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      console.error('Error in updateOpportunity:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 
-  async deleteOpportunity(id: string): Promise<{
-    success: boolean
-    error?: string
-  }> {
+  async deleteOpportunity(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const { user } = useAuthStore.getState()
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
       const { error } = await supabase
         .from('opportunities')
         .delete()
         .eq('id', id)
-        .eq('client_id', user.id) // Ensure user owns the opportunity
 
       if (error) {
-        throw error
+        console.error('Error deleting opportunity:', error)
+        return { success: false, error: error.message }
       }
 
       return { success: true }
     } catch (error) {
-      console.error('Delete opportunity error:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      console.error('Error in deleteOpportunity:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 
@@ -287,16 +213,7 @@ export class OpportunityService {
     try {
       const { data, error } = await supabase
         .from('proposals')
-        .select(`
-          *,
-          profiles!proposals_freelancer_id_fkey (
-            id,
-            first_name,
-            last_name,
-            avatar_url,
-            rating
-          )
-        `)
+        .select('*')
         .eq('opportunity_id', opportunityId)
         .order('created_at', { ascending: false })
 
@@ -312,107 +229,67 @@ export class OpportunityService {
     }
   }
 
-  async createProposal(request: CreateProposalRequest): Promise<{
-    success: boolean
-    proposalId?: string
-    error?: string
-  }> {
+  async createProposal(request: CreateProposalRequest): Promise<{ success: boolean; error?: string; id?: string }> {
     try {
-      const { user } = useAuthStore.getState()
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      if (user.role !== 'freelancer') {
-        throw new Error('Only freelancers can create proposals')
-      }
-
-      const { data: proposal, error } = await supabase
+      const { data, error } = await supabase
         .from('proposals')
         .insert({
-          freelancer_id: user.id,
           opportunity_id: request.opportunity_id,
           cover_letter: request.cover_letter,
           proposed_budget: request.proposed_budget,
           estimated_duration: request.estimated_duration,
+          freelancer_id: '' // This should be set by the caller
         })
         .select()
         .single()
 
       if (error) {
-        throw error
+        console.error('Error creating proposal:', error)
+        return { success: false, error: error.message }
       }
 
-      return {
-        success: true,
-        proposalId: proposal.id,
-      }
+      return { success: true, id: data.id }
     } catch (error) {
-      console.error('Create proposal error:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      console.error('Error in createProposal:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 
-  async acceptProposal(proposalId: string): Promise<{
-    success: boolean
-    error?: string
-  }> {
+  async acceptProposal(proposalId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const { user } = useAuthStore.getState()
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      // Update proposal status
-      const { error: proposalError } = await supabase
+      const { error } = await supabase
         .from('proposals')
         .update({ status: 'accepted' })
         .eq('id', proposalId)
 
-      if (proposalError) {
-        throw proposalError
+      if (error) {
+        console.error('Error accepting proposal:', error)
+        return { success: false, error: error.message }
       }
 
       return { success: true }
     } catch (error) {
-      console.error('Accept proposal error:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      console.error('Error in acceptProposal:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 
-  async rejectProposal(proposalId: string): Promise<{
-    success: boolean
-    error?: string
-  }> {
+  async rejectProposal(proposalId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const { user } = useAuthStore.getState()
-      if (!user) {
-        throw new Error('User not authenticated')
-      }
-
-      // Update proposal status
-      const { error: proposalError } = await supabase
+      const { error } = await supabase
         .from('proposals')
         .update({ status: 'rejected' })
         .eq('id', proposalId)
 
-      if (proposalError) {
-        throw proposalError
+      if (error) {
+        console.error('Error rejecting proposal:', error)
+        return { success: false, error: error.message }
       }
 
       return { success: true }
     } catch (error) {
-      console.error('Reject proposal error:', error)
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }
+      console.error('Error in rejectProposal:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
     }
   }
 }

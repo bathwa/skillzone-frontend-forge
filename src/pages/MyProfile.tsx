@@ -13,6 +13,9 @@ import { profileService } from '@/lib/services/profileService'
 import { COUNTRY_CONFIGS } from '@/lib/constants'
 import { toast } from 'sonner'
 import { User, MapPin, Globe, Phone, Mail, DollarSign, Save } from 'lucide-react'
+import type { Database } from '@/integrations/supabase/types'
+
+type CountryCode = Database['public']['Enums']['country_code']
 
 export const MyProfile = () => {
   const { user, updateUser } = useAuthStore()
@@ -25,7 +28,7 @@ export const MyProfile = () => {
     phone: '',
     bio: '',
     city: '',
-    country: '',
+    country: '' as CountryCode,
     website: '',
     hourly_rate: '',
     experience_level: 'mid'
@@ -40,7 +43,7 @@ export const MyProfile = () => {
         phone: user.phone || '',
         bio: user.bio || '',
         city: user.city || '',
-        country: user.country || '',
+        country: (user.country || 'zimbabwe') as CountryCode,
         website: user.website || '',
         hourly_rate: user.hourly_rate?.toString() || '',
         experience_level: user.experience_level || 'mid'
@@ -62,6 +65,7 @@ export const MyProfile = () => {
     try {
       const updates = {
         ...formData,
+        country: formData.country as CountryCode,
         hourly_rate: formData.hourly_rate ? parseFloat(formData.hourly_rate) : null
       }
 
@@ -95,7 +99,7 @@ export const MyProfile = () => {
         phone: user.phone || '',
         bio: user.bio || '',
         city: user.city || '',
-        country: user.country || '',
+        country: (user.country || 'zimbabwe') as CountryCode,
         website: user.website || '',
         hourly_rate: user.hourly_rate?.toString() || '',
         experience_level: user.experience_level || 'mid'

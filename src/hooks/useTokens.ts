@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { tokenService } from '@/lib/services/tokenService'
 import { useAuthStore } from '@/stores/authStore'
@@ -7,8 +8,7 @@ type TokenTransaction = Database['public']['Tables']['token_transactions']['Row'
 
 export interface TokenPurchaseRequest {
   packageType: keyof typeof import('@/lib/constants').TOKEN_PRICING
-  paymentMethod: 'escrow' | 'payfast' | 'paystack'
-  escrowAccountId?: string
+  paymentMethod: 'payfast' | 'paystack'
   reference?: string
 }
 
@@ -74,24 +74,6 @@ export const useCreateTokenPurchase = () => {
           // This would need to be implemented in the auth store
           // For now, we'll just invalidate the queries
         }
-      }
-    },
-  })
-}
-
-// Verify escrow payment
-export const useVerifyEscrowPayment = () => {
-  const queryClient = useQueryClient()
-  const { user } = useAuthStore()
-
-  return useMutation({
-    mutationFn: async ({ transactionId, proofOfPayment }: { transactionId: string; proofOfPayment: string }) => {
-      return await tokenService.verifyEscrowPayment(transactionId, proofOfPayment)
-    },
-    onSuccess: (result) => {
-      if (result.success) {
-        // Invalidate token transactions
-        queryClient.invalidateQueries({ queryKey: ['token-transactions', user?.id] })
       }
     },
   })
