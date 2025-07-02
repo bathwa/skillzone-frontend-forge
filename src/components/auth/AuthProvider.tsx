@@ -1,31 +1,84 @@
 
-import React, { useEffect } from 'react'
-import { useAuthStore } from '@/stores/authStore'
+import React, { createContext, useContext, useEffect, useState } from 'react'
+import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/integrations/supabase/client'
+import { useToast } from '@/hooks/use-toast'
 
-interface AuthProviderProps {
-  children: React.ReactNode
+interface AuthContextType {
+  user: User | null
+  session: Session | null
+  loading: boolean
+  signOut: () => Promise<void>
 }
 
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const { checkAuth } = useAuthStore()
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   useEffect(() => {
-    // Check auth immediately on mount
-    checkAuth()
-
-    // Listen for auth changes
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Use setTimeout to avoid potential recursion issues
-        setTimeout(() => {
-          checkAuth()
-        }, 0)
+        console.log('Auth state changed:', event, session?.user?.email)
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          toast({
+            title: "Welcome!",
+            description: "You have successfully signed in.",
+          })
+        }
       }
     )
 
-    return () => subscription.unsubscribe()
-  }, [checkAuth])
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
-  return <>{children}</>
+    return () => subscription.unsubscribe()
+  }, [toast])
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
+      toast({
+        title: "Signed Out",
+        description: "You have been successfully signed out.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const value = {
+    user,
+    session,
+    loading,
+    signOut
+  }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

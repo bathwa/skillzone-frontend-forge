@@ -1,242 +1,144 @@
 
 import React, { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useNavigate, Link } from 'react-router-dom'
-import { useAuthStore } from '@/stores/authStore'
-import { toast } from 'sonner'
-import { ADMIN_EMAILS, ADMIN_KEY } from '@/lib/constants'
-
-const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-})
-
-const adminKeySchema = z.object({
-  adminKey: z.string().min(1, 'Admin key is required'),
-})
-
-type LoginFormData = z.infer<typeof loginSchema>
-type AdminKeyFormData = z.infer<typeof adminKeySchema>
+import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export const Login = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const [showAdminKey, setShowAdminKey] = useState(false)
-  const [adminCredentials, setAdminCredentials] = useState({ email: '', password: '' })
-  
   const navigate = useNavigate()
-  const { login } = useAuthStore()
-
-  const loginForm = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+  const location = useLocation()
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
   })
 
-  const adminKeyForm = useForm<AdminKeyFormData>({
-    resolver: zodResolver(adminKeySchema),
-    defaultValues: {
-      adminKey: '',
-    },
-  })
+  const from = location.state?.from?.pathname || '/dashboard'
 
-  const getRoleBasedRoute = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return '/admin/dashboard'
-      case 'client':
-      case 'freelancer':
-        return '/dashboard'
-      default:
-        return '/dashboard'
-    }
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const onLoginSubmit = async (data: LoginFormData) => {
-    setIsLoading(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     
+    if (!formData.email || !formData.password) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both email and password.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setLoading(true)
+
     try {
-      console.log('Login attempt for email:', data.email)
-      
-      // Check if admin email and key is required
-      if (ADMIN_EMAILS.includes(data.email.toLowerCase())) {
-        console.log('Admin email detected, showing admin key form')
-        setShowAdminKey(true)
-        setAdminCredentials({ email: data.email, password: data.password })
-        setIsLoading(false)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      })
+
+      if (error) {
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive"
+        })
         return
       }
-      
-      // Use direct Supabase authentication
-      const result = await login(data.email, data.password)
-      
-      if (result.success) {
-        const { user } = useAuthStore.getState()
-        toast.success('Welcome back to SkillZone!')
-        
-        // Role-based routing
-        const redirectRoute = getRoleBasedRoute(user?.role || 'freelancer')
-        navigate(redirectRoute)
-      } else {
-        toast.error(result.error || 'Invalid email or password. Please try again.')
+
+      if (data.user) {
+        navigate(from, { replace: true })
       }
     } catch (error) {
-      console.error('Login error:', error)
-      toast.error('Authentication failed. Please try again.')
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
-  }
-
-  const onAdminKeySubmit = async (data: AdminKeyFormData) => {
-    setIsLoading(true)
-    
-    try {
-      // Validate admin key
-      if (data.adminKey !== ADMIN_KEY) {
-        toast.error('Invalid admin key. Please try again.')
-        setIsLoading(false)
-        return
-      }
-      
-      // Use the original credentials for admin authentication
-      const result = await login(adminCredentials.email, adminCredentials.password)
-      
-      if (result.success) {
-        toast.success('Welcome to Admin Dashboard!')
-        navigate('/admin/dashboard')
-      } else {
-        toast.error('Admin authentication failed. Please try again.')
-      }
-    } catch (error) {
-      toast.error('Authentication failed. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const handleBackToLogin = () => {
-    setShowAdminKey(false)
-    setAdminCredentials({ email: '', password: '' })
-    adminKeyForm.reset()
-  }
-
-  if (showAdminKey) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Admin Authentication</CardTitle>
-            <CardDescription>
-              Please enter the admin key to continue
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={adminKeyForm.handleSubmit(onAdminKeySubmit)} className="space-y-4">
-              <div>
-                <Label htmlFor="adminKey">Admin Key</Label>
-                <Input
-                  id="adminKey"
-                  type="password"
-                  {...adminKeyForm.register('adminKey')}
-                  placeholder="Enter admin key"
-                  disabled={isLoading}
-                />
-                {adminKeyForm.formState.errors.adminKey && (
-                  <p className="text-sm text-red-600 mt-1">
-                    {adminKeyForm.formState.errors.adminKey.message}
-                  </p>
-                )}
-              </div>
-              
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? 'Authenticating...' : 'Continue'}
-              </Button>
-              
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="w-full" 
-                onClick={handleBackToLogin}
-                disabled={isLoading}
-              >
-                Back to Login
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
-    )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Welcome Back</CardTitle>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
           <CardDescription>
-            Sign in to your SkillZone account
+            Sign in to your SkillsPortal account
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
-                {...loginForm.register('email')}
-                placeholder="Enter your email"
-                disabled={isLoading}
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="john@example.com"
+                required
               />
-              {loginForm.formState.errors.email && (
-                <p className="text-sm text-red-600 mt-1">
-                  {loginForm.formState.errors.email.message}
-                </p>
-              )}
             </div>
-            
-            <div>
+
+            <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                {...loginForm.register('password')}
-                placeholder="Enter your password"
-                disabled={isLoading}
-              />
-              {loginForm.formState.errors.password && (
-                <p className="text-sm text-red-600 mt-1">
-                  {loginForm.formState.errors.password.message}
-                </p>
-              )}
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
-            
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Signing in...' : 'Sign In'}
+
+            <div className="flex justify-end">
+              <Link 
+                to="/forgot-password" 
+                className="text-sm text-primary hover:underline"
+              >
+                Forgot your password?
+              </Link>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sign In
             </Button>
-            
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
-                Don't have an account?{' '}
-                <Link to="/signup" className="text-blue-600 hover:text-blue-500">
-                  Sign up
-                </Link>
-              </p>
-              <p className="text-sm text-gray-600 mt-2">
-                <Link to="/forgot-password" className="text-blue-600 hover:text-blue-500">
-                  Forgot your password?
-                </Link>
-              </p>
-            </div>
           </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have an account?{' '}
+              <Link to="/signup" className="text-primary hover:underline font-medium">
+                Sign up
+              </Link>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

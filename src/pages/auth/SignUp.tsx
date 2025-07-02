@@ -1,319 +1,317 @@
 
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2 } from 'lucide-react'
-import { useAuthStore } from '@/stores/authStore'
-import { toast } from 'sonner'
+import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
-// Admin email detection
-const ADMIN_EMAILS = ['abathwabiz@gmail.com', 'admin@abathwa.com']
+const SUPER_ADMIN_EMAILS = ['abathwabiz@gmail.com', 'admin@abathwa.com']
 
-const signUpSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters').regex(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-    'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-  ),
-  confirmPassword: z.string(),
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  role: z.enum(['client', 'freelancer']),
-  country: z.string().min(1, 'Please select your country'),
-  acceptTerms: z.boolean().refine(val => val === true, 'You must accept the terms and conditions'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-}).refine((data) => !ADMIN_EMAILS.includes(data.email.toLowerCase()), {
-  message: "Admin emails cannot sign up through this form. Please use the login page.",
-  path: ["email"],
-})
-
-type SignUpFormData = z.infer<typeof signUpSchema>
-
-const sadcCountries = [
+const SADC_COUNTRIES = [
   { value: 'south_africa', label: 'South Africa' },
   { value: 'botswana', label: 'Botswana' },
   { value: 'zimbabwe', label: 'Zimbabwe' },
-  { value: 'zambia', label: 'Zambia' },
   { value: 'namibia', label: 'Namibia' },
+  { value: 'zambia', label: 'Zambia' },
   { value: 'lesotho', label: 'Lesotho' },
   { value: 'eswatini', label: 'Eswatini' },
   { value: 'malawi', label: 'Malawi' },
   { value: 'mozambique', label: 'Mozambique' },
+  { value: 'tanzania', label: 'Tanzania' },
   { value: 'angola', label: 'Angola' },
-  { value: 'comoros', label: 'Comoros' },
   { value: 'madagascar', label: 'Madagascar' },
   { value: 'mauritius', label: 'Mauritius' },
   { value: 'seychelles', label: 'Seychelles' },
-  { value: 'tanzania', label: 'Tanzania' },
+  { value: 'comoros', label: 'Comoros' }
 ]
 
 export const SignUp = () => {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { signup } = useAuthStore()
-  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   
-  const preselectedRole = searchParams.get('role') as 'client' | 'freelancer' | 'service_provider' | null
-
-  // Map service_provider to freelancer for consistency
-  const getValidRole = (role: string | null): 'client' | 'freelancer' => {
-    if (role === 'service_provider' || role === 'freelancer') return 'freelancer'
-    if (role === 'client') return 'client'
-    return 'freelancer' // default
-  }
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-    clearErrors,
-  } = useForm<SignUpFormData>({
-    resolver: zodResolver(signUpSchema),
-    defaultValues: {
-      role: getValidRole(preselectedRole),
-    }
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    role: (searchParams.get('role') as 'client' | 'freelancer') || 'freelancer',
+    country: '',
+    adminKey: '',
+    agreeToTerms: false
   })
 
-  const selectedRole = watch('role')
-  const password = watch('password')
+  const isSuperAdmin = SUPER_ADMIN_EMAILS.includes(formData.email.toLowerCase())
 
-  useEffect(() => {
-    if (preselectedRole) {
-      setValue('role', getValidRole(preselectedRole))
-    }
-  }, [preselectedRole, setValue])
-
-  const getPasswordStrength = (password: string) => {
-    if (!password) return { strength: 0, label: '', color: '' }
-    
-    let strength = 0
-    if (password.length >= 8) strength += 1
-    if (/[a-z]/.test(password)) strength += 1
-    if (/[A-Z]/.test(password)) strength += 1
-    if (/\d/.test(password)) strength += 1
-    if (/[^a-zA-Z\d]/.test(password)) strength += 1
-
-    const strengthLabels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong']
-    const strengthColors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500']
-
-    return {
-      strength,
-      label: strengthLabels[strength - 1] || '',
-      color: strengthColors[strength - 1] || '',
-    }
+  const handleInputChange = (field: string, value: string | boolean) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  const passwordStrength = getPasswordStrength(password || '')
-
-  const onSignUpSubmit = async (data: SignUpFormData) => {
-    setIsLoading(true)
-    
-    try {
-      console.log('Signup attempt with data:', { ...data, password: '[HIDDEN]' })
-      
-      const result = await signup(data.email, data.password, {
-        first_name: data.name.split(' ')[0],
-        last_name: data.name.split(' ').slice(1).join(' '),
-        role: data.role,
-        country: data.country as any,
+  const validateForm = () => {
+    if (!formData.email || !formData.password || !formData.firstName || !formData.lastName) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive"
       })
-      
-      if (result.success) {
-        toast.success('Account created successfully! Please check your email to verify your account.')
+      return false
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Passwords Don't Match",
+        description: "Please make sure both passwords are identical.",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (!formData.agreeToTerms) {
+      toast({
+        title: "Terms Required",
+        description: "Please accept the Terms of Service and Privacy Policy.",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    if (isSuperAdmin && formData.adminKey !== '"vvv.ndev"') {
+      toast({
+        title: "Invalid Admin Key",
+        description: "Please enter the correct admin key in quotes.",
+        variant: "destructive"
+      })
+      return false
+    }
+
+    return true
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!validateForm()) return
+
+    setLoading(true)
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            role: isSuperAdmin ? 'admin' : formData.role,
+            country: formData.country
+          }
+        }
+      })
+
+      if (error) {
+        toast({
+          title: "Sign Up Failed",
+          description: error.message,
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (data.user) {
+        toast({
+          title: "Account Created!",
+          description: "Please check your email to verify your account.",
+        })
         navigate('/login')
-      } else {
-        toast.error(result.error || 'Failed to create account. Please try again.')
       }
     } catch (error) {
-      console.error('Signup error:', error)
-      toast.error('Account creation failed. Please try again.')
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Create your account</CardTitle>
-          <CardDescription className="text-center">
-            Join SkillZone and start building your career
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Join SkillsPortal</CardTitle>
+          <CardDescription>
+            Create your account to get started
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSignUpSubmit)} className="space-y-4">
-            {/* Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                {...register('name')}
-                placeholder="Enter your full name"
-                className={errors.name ? 'border-destructive' : ''}
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                {...register('email')}
-                placeholder="Enter your email"
-                className={errors.email ? 'border-destructive' : ''}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
-            </div>
-
-            {/* Role Selection */}
-            <div className="space-y-2">
-              <Label>I want to</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <input
-                    type="radio"
-                    id="freelancer"
-                    value="freelancer"
-                    {...register('role')}
-                    className="sr-only"
-                  />
-                  <Label
-                    htmlFor="freelancer"
-                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      selectedRole === 'freelancer'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-muted-foreground/20 hover:border-primary/50'
-                    }`}
-                  >
-                    <span className="font-medium">Offer Services</span>
-                    <span className="text-xs text-muted-foreground text-center">
-                      Sell your skills and build your career
-                    </span>
-                  </Label>
-                </div>
-                <div className="space-y-2">
-                  <input
-                    type="radio"
-                    id="client"
-                    value="client"
-                    {...register('role')}
-                    className="sr-only"
-                  />
-                  <Label
-                    htmlFor="client"
-                    className={`flex flex-col items-center justify-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      selectedRole === 'client'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-muted-foreground/20 hover:border-primary/50'
-                    }`}
-                  >
-                    <span className="font-medium">Hire Talent</span>
-                    <span className="text-xs text-muted-foreground text-center">
-                      Find professionals for your projects
-                    </span>
-                  </Label>
-                </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  placeholder="John"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  placeholder="Doe"
+                  required
+                />
               </div>
             </div>
 
-            {/* Country */}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="john@example.com"
+                required
+              />
+              {isSuperAdmin && (
+                <p className="text-sm text-primary font-medium">
+                  Super Admin email detected
+                </p>
+              )}
+            </div>
+
+            {!isSuperAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="role">I want to *</Label>
+                <Select 
+                  value={formData.role} 
+                  onValueChange={(value: 'client' | 'freelancer') => handleInputChange('role', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="freelancer">Offer my skills (Service Provider)</SelectItem>
+                    <SelectItem value="client">Hire talent (Client)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="country">Country</Label>
-              <Select
-                onValueChange={(value) => {
-                  setValue('country', value)
-                  clearErrors('country')
-                }}
+              <Select 
+                value={formData.country} 
+                onValueChange={(value) => handleInputChange('country', value)}
               >
-                <SelectTrigger className={errors.country ? 'border-destructive' : ''}>
+                <SelectTrigger>
                   <SelectValue placeholder="Select your country" />
                 </SelectTrigger>
                 <SelectContent>
-                  {sadcCountries.map((country) => (
+                  {SADC_COUNTRIES.map((country) => (
                     <SelectItem key={country.value} value={country.value}>
                       {country.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {errors.country && (
-                <p className="text-sm text-destructive">{errors.country.message}</p>
-              )}
             </div>
 
-            {/* Password */}
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                {...register('password')}
-                placeholder="Create a strong password"
-                className={errors.password ? 'border-destructive' : ''}
-              />
-              {password && (
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <div className="flex-1 bg-muted rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all ${passwordStrength.color}`}
-                        style={{ width: `${(passwordStrength.strength / 5) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-xs text-muted-foreground">{passwordStrength.label}</span>
-                  </div>
-                </div>
-              )}
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password.message}</p>
-              )}
+              <Label htmlFor="password">Password *</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
 
-            {/* Confirm Password */}
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                {...register('confirmPassword')}
-                placeholder="Confirm your password"
-                className={errors.confirmPassword ? 'border-destructive' : ''}
-              />
-              {errors.confirmPassword && (
-                <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-              )}
+              <Label htmlFor="confirmPassword">Confirm Password *</Label>
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
 
-            {/* Terms and Conditions */}
+            {isSuperAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="adminKey">Admin Verification Key *</Label>
+                <Input
+                  id="adminKey"
+                  value={formData.adminKey}
+                  onChange={(e) => handleInputChange('adminKey', e.target.value)}
+                  placeholder="Enter admin key in quotes"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter the admin key exactly as provided, including quotes.
+                </p>
+              </div>
+            )}
+
             <div className="flex items-center space-x-2">
               <Checkbox
-                id="acceptTerms"
-                checked={watch('acceptTerms')}
-                onCheckedChange={(checked) => {
-                  setValue('acceptTerms', checked === true)
-                  clearErrors('acceptTerms')
-                }}
-                className={errors.acceptTerms ? 'border-destructive' : ''}
+                id="terms"
+                checked={formData.agreeToTerms}
+                onCheckedChange={(checked) => handleInputChange('agreeToTerms', checked)}
               />
-              <Label htmlFor="acceptTerms" className="text-sm">
+              <Label htmlFor="terms" className="text-sm">
                 I agree to the{' '}
                 <Link to="/terms" className="text-primary hover:underline">
                   Terms of Service
@@ -324,20 +322,10 @@ export const SignUp = () => {
                 </Link>
               </Label>
             </div>
-            {errors.acceptTerms && (
-              <p className="text-sm text-destructive">{errors.acceptTerms.message}</p>
-            )}
 
-            {/* Submit Button */}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                'Create Account'
-              )}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Create Account
             </Button>
           </form>
 

@@ -1,86 +1,89 @@
 
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
-import { toast } from 'sonner'
-
-const forgotPasswordSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-})
-
-type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>
+import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/integrations/supabase/client'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 
 export const ForgotPassword = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const [isEmailSent, setIsEmailSent] = useState(false)
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    getValues,
-  } = useForm<ForgotPasswordFormData>({
-    resolver: zodResolver(forgotPasswordSchema),
-  })
-
-  const onSubmit = async (data: ForgotPasswordFormData) => {
-    setIsLoading(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     
+    if (!email) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    setLoading(true)
+
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      setIsEmailSent(true)
-      toast.success('Password reset email sent!')
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`
+      })
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        })
+        return
+      }
+
+      setSent(true)
+      toast({
+        title: "Reset Link Sent",
+        description: "Check your email for the password reset link.",
+      })
     } catch (error) {
-      toast.error('Failed to send reset email. Please try again.')
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      })
     } finally {
-      setIsLoading(false)
+      setLoading(false)
     }
   }
 
-  if (isEmailSent) {
+  if (sent) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
         <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1 text-center">
-            <div className="mx-auto w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Check your email</CardTitle>
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">Check Your Email</CardTitle>
             <CardDescription>
-              We've sent a password reset link to {getValues('email')}
+              We've sent a password reset link to your email address.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <AlertDescription>
-                If you don't see the email in your inbox, please check your spam folder.
-              </AlertDescription>
-            </Alert>
-            
-            <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Didn't receive the email?
-              </p>
-              <Button variant="outline" onClick={() => setIsEmailSent(false)}>
-                Try again
+          <CardContent className="text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Click the link in the email to reset your password. The link will expire in 1 hour.
+            </p>
+            <div className="space-y-2">
+              <Button asChild className="w-full">
+                <Link to="/login">Back to Login</Link>
               </Button>
-            </div>
-
-            <div className="text-center">
-              <Link to="/login" className="inline-flex items-center text-sm text-primary hover:underline">
-                <ArrowLeft className="mr-1 h-4 w-4" />
-                Back to login
-              </Link>
+              <Button 
+                variant="outline" 
+                onClick={() => setSent(false)}
+                className="w-full"
+              >
+                Send Another Link
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -89,46 +92,41 @@ export const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Reset your password</CardTitle>
-          <CardDescription className="text-center">
-            Enter your email address and we'll send you a reset link
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">Forgot Password</CardTitle>
+          <CardDescription>
+            Enter your email address and we'll send you a reset link.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 type="email"
-                {...register('email')}
-                placeholder="Enter your email"
-                className={errors.email ? 'border-destructive' : ''}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="john@example.com"
+                required
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email.message}</p>
-              )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                'Send Reset Link'
-              )}
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Send Reset Link
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <Link to="/login" className="inline-flex items-center text-sm text-primary hover:underline">
+            <Link 
+              to="/login" 
+              className="inline-flex items-center text-sm text-primary hover:underline"
+            >
               <ArrowLeft className="mr-1 h-4 w-4" />
-              Back to login
+              Back to Login
             </Link>
           </div>
         </CardContent>

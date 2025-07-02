@@ -12,37 +12,49 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
-import { useAuthStore } from '@/stores/authStore'
-import { useThemeStore } from '@/stores/themeStore'
+import { useTheme } from 'next-themes'
+import { useAuth } from '@/components/auth/AuthProvider'
 import { useNotificationStore } from '@/stores/notificationStore'
-import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { Menu, Bell, User, LogOut, Settings, CreditCard, MessageSquare, Briefcase, Star, Shield } from 'lucide-react'
-import { getRoleBasedRoute } from '@/lib/utils'
+import { 
+  Menu, 
+  Sun, 
+  Moon, 
+  User, 
+  Settings, 
+  CreditCard, 
+  Bell, 
+  LogOut,
+  Briefcase,
+  FileText,
+  MessageSquare,
+  LayoutDashboard
+} from 'lucide-react'
+
+const navigationLinks = [
+  { href: '/opportunities', label: 'Browse Opportunities' },
+  { href: '/skills', label: 'Find Talent' },
+  { href: '/about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
+]
 
 export const Header = () => {
-  const { isAuthenticated, user, logout } = useAuthStore()
-  const { getUnreadCount } = useNotificationStore()
+  const { theme, setTheme } = useTheme()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const { getUnreadCount } = useNotificationStore()
   
   const unreadCount = getUnreadCount()
 
-  const handleLogout = () => {
-    logout()
+  const handleSignOut = async () => {
+    await signOut()
     navigate('/')
   }
 
-  // Navigation links - only show when not authenticated or on landing page
-  const navigationLinks = [
-    { href: '/opportunities', label: 'Browse Opportunities' },
-    { href: '/skills', label: 'Browse Skills' },
-  ]
-
-  // Only show these links when not authenticated
-  const publicLinks = [
-    { href: '/about', label: 'About' },
-    { href: '/contact', label: 'Contact' },
-  ]
+  const userInitials = user ? 
+    `${user.user_metadata?.first_name?.[0] || ''}${user.user_metadata?.last_name?.[0] || ''}`.toUpperCase() ||
+    user.email?.[0]?.toUpperCase() || 'U'
+    : 'U'
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -66,31 +78,39 @@ export const Header = () => {
               {link.label}
             </Link>
           ))}
-          {/* Only show public links when not authenticated */}
-          {!isAuthenticated && publicLinks.map((link) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
-            >
-              {link.label}
-            </Link>
-          ))}
         </nav>
 
         {/* Desktop Actions */}
         <div className="hidden md:flex items-center space-x-4">
-          <ThemeToggle />
-          
-          {isAuthenticated ? (
-            <div className="flex items-center space-x-2">
+          {/* Theme Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="h-9 w-9 p-0"
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
+
+          {user ? (
+            <>
               {/* Notifications */}
-              <Button variant="ghost" size="sm" className="relative" asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="h-9 w-9 p-0 relative"
+              >
                 <Link to="/notifications">
                   <Bell className="h-4 w-4" />
                   {unreadCount > 0 && (
-                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
-                      {unreadCount}
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-1 -right-1 h-5 w-5 text-xs p-0 flex items-center justify-center"
+                    >
+                      {unreadCount > 9 ? '9+' : unreadCount}
                     </Badge>
                   )}
                 </Link>
@@ -99,67 +119,52 @@ export const Header = () => {
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user?.avatar_url || undefined} alt={user?.name} />
-                      <AvatarFallback>{user?.name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                      <AvatarImage 
+                        src={user.user_metadata?.avatar_url} 
+                        alt={user.user_metadata?.first_name || user.email} 
+                      />
+                      <AvatarFallback>{userInitials}</AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuContent className="w-56" align="end">
                   <div className="flex items-center justify-start gap-2 p-2">
                     <div className="flex flex-col space-y-1 leading-none">
-                      <p className="font-medium">{user?.name}</p>
+                      <p className="font-medium">
+                        {user.user_metadata?.first_name} {user.user_metadata?.last_name}
+                      </p>
                       <p className="w-[200px] truncate text-sm text-muted-foreground">
-                        {user?.email}
+                        {user.email}
                       </p>
                     </div>
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link to={getRoleBasedRoute(user?.role)}>
-                      <User className="mr-2 h-4 w-4" />
+                    <Link to="/dashboard">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
                       Dashboard
                     </Link>
                   </DropdownMenuItem>
-                  {user?.role === 'admin' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/admin/dashboard">
-                        <Shield className="mr-2 h-4 w-4" />
-                        Admin Panel
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuItem asChild>
                     <Link to="/my-profile">
-                      <Settings className="mr-2 h-4 w-4" />
+                      <User className="mr-2 h-4 w-4" />
                       My Profile
                     </Link>
                   </DropdownMenuItem>
-                  {user?.role === 'client' && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link to="/client/opportunities">
-                          <Briefcase className="mr-2 h-4 w-4" />
-                          My Opportunities
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/subscriptions">
-                          <Star className="mr-2 h-4 w-4" />
-                          Subscriptions
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {user?.role === 'freelancer' && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/sp/proposals">
-                        <Star className="mr-2 h-4 w-4" />
-                        My Proposals
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem asChild>
+                    <Link to="/client/opportunities">
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      My Opportunities
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/sp/proposals">
+                      <FileText className="mr-2 h-4 w-4" />
+                      My Proposals
+                    </Link>
+                  </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link to="/my-tokens">
                       <CreditCard className="mr-2 h-4 w-4" />
@@ -167,23 +172,29 @@ export const Header = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link to="/feedback">
+                    <Link to="/subscriptions">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Subscriptions
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/chat">
                       <MessageSquare className="mr-2 h-4 w-4" />
-                      Feedback
+                      Messages
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
+                  <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                    Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
+            </>
           ) : (
             <div className="flex items-center space-x-2">
               <Button variant="ghost" asChild>
-                <Link to="/login">Login</Link>
+                <Link to="/login">Sign In</Link>
               </Button>
               <Button asChild>
                 <Link to="/signup">Get Started</Link>
@@ -193,124 +204,142 @@ export const Header = () => {
         </div>
 
         {/* Mobile Menu */}
-        <div className="flex items-center space-x-2 md:hidden">
-          <ThemeToggle />
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <div className="md:hidden">
+          <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
                 <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-80">
-              <div className="flex flex-col space-y-4 mt-8">
+              <div className="flex flex-col space-y-4 mt-4">
                 {/* Navigation Links */}
-                <div className="space-y-2">
-                  {navigationLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      to={link.href}
-                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
-                  {/* Only show public links when not authenticated */}
-                  {!isAuthenticated && publicLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      to={link.href}
-                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      {link.label}
-                    </Link>
-                  ))}
-                </div>
+                {navigationLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    to={link.href}
+                    className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
 
-                {/* User Actions */}
-                {isAuthenticated ? (
-                  <div className="border-t pt-4 space-y-2">
-                    <div className="flex items-center space-x-2 px-4 py-2">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user?.avatar_url || undefined} alt={user?.name} />
-                        <AvatarFallback>{user?.name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium text-sm">{user?.name}</p>
-                        <p className="text-xs text-muted-foreground">{user?.email}</p>
+                <div className="border-t pt-4 mt-4">
+                  {user ? (
+                    <>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage 
+                            src={user.user_metadata?.avatar_url} 
+                            alt={user.user_metadata?.first_name || user.email} 
+                          />
+                          <AvatarFallback>{userInitials}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {user.user_metadata?.first_name} {user.user_metadata?.last_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {user.email}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <Link
-                      to={getRoleBasedRoute(user?.role)}
-                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                    {user?.role === 'admin' && (
-                      <Link
-                        to="/admin/dashboard"
-                        className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                        onClick={() => setMobileMenuOpen(false)}
+
+                      {/* User Menu Items */}
+                      <div className="space-y-2">
+                        <Link
+                          to="/dashboard"
+                          className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <LayoutDashboard className="h-4 w-4" />
+                          <span>Dashboard</span>
+                        </Link>
+                        <Link
+                          to="/my-profile"
+                          className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <User className="h-4 w-4" />
+                          <span>My Profile</span>
+                        </Link>
+                        <Link
+                          to="/notifications"
+                          className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <Bell className="h-4 w-4" />
+                          <span>Notifications</span>
+                          {unreadCount > 0 && (
+                            <Badge variant="destructive" className="ml-auto">
+                              {unreadCount > 9 ? '9+' : unreadCount}
+                            </Badge>
+                          )}
+                        </Link>
+                        <Link
+                          to="/my-tokens"
+                          className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          <span>My Tokens</span>
+                        </Link>
+                        <Link
+                          to="/subscriptions"
+                          className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <Settings className="h-4 w-4" />
+                          <span>Subscriptions</span>
+                        </Link>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            handleSignOut()
+                            setMobileOpen(false)
+                          }}
+                          className="w-full justify-start text-sm font-medium text-muted-foreground hover:text-primary"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          Sign Out
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button
+                        variant="ghost"
+                        asChild
+                        className="w-full justify-start"
+                        onClick={() => setMobileOpen(false)}
                       >
-                        Admin Panel
-                      </Link>
-                    )}
-                    <Link
-                      to="/my-profile"
-                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
+                        <Link to="/login">Sign In</Link>
+                      </Button>
+                      <Button
+                        asChild
+                        className="w-full"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        <Link to="/signup">Get Started</Link>
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Theme Toggle */}
+                  <div className="pt-4 mt-4 border-t">
+                    <Button
+                      variant="ghost"
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      className="w-full justify-start"
                     >
-                      My Profile
-                    </Link>
-                    <Link
-                      to="/notifications"
-                      className="flex items-center justify-between px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Notifications
-                      {unreadCount > 0 && (
-                        <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 text-xs">
-                          {unreadCount}
-                        </Badge>
-                      )}
-                    </Link>
-                    <Link
-                      to="/feedback"
-                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Feedback
-                    </Link>
-                    <button
-                      onClick={() => {
-                        handleLogout()
-                        setMobileMenuOpen(false)
-                      }}
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-accent rounded-md"
-                    >
-                      Log out
-                    </button>
+                      <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                      <span className="ml-6">Toggle theme</span>
+                    </Button>
                   </div>
-                ) : (
-                  <div className="border-t pt-4 space-y-2">
-                    <Link
-                      to="/login"
-                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Login
-                    </Link>
-                    <Link
-                      to="/signup"
-                      className="block px-4 py-2 text-sm hover:bg-accent rounded-md"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Get Started
-                    </Link>
-                  </div>
-                )}
+                </div>
               </div>
             </SheetContent>
           </Sheet>

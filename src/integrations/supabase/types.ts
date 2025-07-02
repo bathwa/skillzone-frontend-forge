@@ -9,6 +9,204 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      daily_analytics: {
+        Row: {
+          active_users: number
+          completed_projects: number
+          created_at: string
+          date: string
+          id: string
+          new_opportunities: number
+          new_users: number
+          revenue_usd: number
+        }
+        Insert: {
+          active_users?: number
+          completed_projects?: number
+          created_at?: string
+          date: string
+          id?: string
+          new_opportunities?: number
+          new_users?: number
+          revenue_usd?: number
+        }
+        Update: {
+          active_users?: number
+          completed_projects?: number
+          created_at?: string
+          date?: string
+          id?: string
+          new_opportunities?: number
+          new_users?: number
+          revenue_usd?: number
+        }
+        Relationships: []
+      }
+      dispute_evidence: {
+        Row: {
+          created_at: string
+          dispute_id: string
+          evidence_data: string
+          evidence_type: string
+          id: string
+          submitted_by: string
+        }
+        Insert: {
+          created_at?: string
+          dispute_id: string
+          evidence_data: string
+          evidence_type: string
+          id?: string
+          submitted_by: string
+        }
+        Update: {
+          created_at?: string
+          dispute_id?: string
+          evidence_data?: string
+          evidence_type?: string
+          id?: string
+          submitted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_evidence_dispute_id_fkey"
+            columns: ["dispute_id"]
+            isOneToOne: false
+            referencedRelation: "disputes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispute_evidence_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      disputes: {
+        Row: {
+          amount_disputed: number | null
+          client_id: string
+          created_at: string
+          description: string
+          dispute_type: Database["public"]["Enums"]["dispute_type"]
+          id: string
+          opportunity_id: string
+          resolution: string | null
+          resolved_at: string | null
+          service_provider_id: string
+          status: Database["public"]["Enums"]["dispute_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount_disputed?: number | null
+          client_id: string
+          created_at?: string
+          description: string
+          dispute_type: Database["public"]["Enums"]["dispute_type"]
+          id?: string
+          opportunity_id: string
+          resolution?: string | null
+          resolved_at?: string | null
+          service_provider_id: string
+          status?: Database["public"]["Enums"]["dispute_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount_disputed?: number | null
+          client_id?: string
+          created_at?: string
+          description?: string
+          dispute_type?: Database["public"]["Enums"]["dispute_type"]
+          id?: string
+          opportunity_id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          service_provider_id?: string
+          status?: Database["public"]["Enums"]["dispute_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "disputes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disputes_service_provider_id_fkey"
+            columns: ["service_provider_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          admin_response: string | null
+          context_data: Json | null
+          created_at: string
+          description: string
+          feedback_type: Database["public"]["Enums"]["feedback_type"]
+          id: string
+          priority: Database["public"]["Enums"]["feedback_priority"]
+          screenshot_url: string | null
+          status: Database["public"]["Enums"]["feedback_status"]
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          context_data?: Json | null
+          created_at?: string
+          description: string
+          feedback_type: Database["public"]["Enums"]["feedback_type"]
+          id?: string
+          priority?: Database["public"]["Enums"]["feedback_priority"]
+          screenshot_url?: string | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          context_data?: Json | null
+          created_at?: string
+          description?: string
+          feedback_type?: Database["public"]["Enums"]["feedback_type"]
+          id?: string
+          priority?: Database["public"]["Enums"]["feedback_priority"]
+          screenshot_url?: string | null
+          status?: Database["public"]["Enums"]["feedback_status"]
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -524,6 +722,33 @@ export type Database = {
           },
         ]
       }
+      site_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
       skills: {
         Row: {
           category: string
@@ -547,6 +772,50 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          auto_renew: boolean
+          created_at: string
+          expires_at: string | null
+          id: string
+          started_at: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          tier: Database["public"]["Enums"]["subscription_tier"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_renew?: boolean
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_renew?: boolean
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          tier?: Database["public"]["Enums"]["subscription_tier"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       testimonials: {
         Row: {
@@ -693,12 +962,29 @@ export type Database = {
         | "mauritius"
         | "seychelles"
         | "comoros"
+      dispute_status: "open" | "under_review" | "resolved" | "closed"
+      dispute_type:
+        | "payment"
+        | "quality"
+        | "communication"
+        | "timeline"
+        | "other"
+      feedback_priority: "low" | "medium" | "high" | "urgent"
+      feedback_status: "pending" | "in_progress" | "resolved" | "closed"
+      feedback_type:
+        | "bug"
+        | "feature_request"
+        | "general"
+        | "complaint"
+        | "compliment"
       opportunity_status: "open" | "in_progress" | "completed" | "cancelled"
       opportunity_type: "standard" | "premium"
       payment_status: "pending" | "completed" | "failed" | "refunded"
       project_status: "active" | "completed" | "cancelled" | "disputed"
       proposal_status: "pending" | "accepted" | "rejected" | "withdrawn"
       skill_level: "beginner" | "intermediate" | "advanced" | "expert"
+      subscription_status: "active" | "cancelled" | "expired" | "suspended"
+      subscription_tier: "basic" | "pro" | "premium"
       user_role: "freelancer" | "client" | "admin"
     }
     CompositeTypes: {
@@ -832,12 +1118,31 @@ export const Constants = {
         "seychelles",
         "comoros",
       ],
+      dispute_status: ["open", "under_review", "resolved", "closed"],
+      dispute_type: [
+        "payment",
+        "quality",
+        "communication",
+        "timeline",
+        "other",
+      ],
+      feedback_priority: ["low", "medium", "high", "urgent"],
+      feedback_status: ["pending", "in_progress", "resolved", "closed"],
+      feedback_type: [
+        "bug",
+        "feature_request",
+        "general",
+        "complaint",
+        "compliment",
+      ],
       opportunity_status: ["open", "in_progress", "completed", "cancelled"],
       opportunity_type: ["standard", "premium"],
       payment_status: ["pending", "completed", "failed", "refunded"],
       project_status: ["active", "completed", "cancelled", "disputed"],
       proposal_status: ["pending", "accepted", "rejected", "withdrawn"],
       skill_level: ["beginner", "intermediate", "advanced", "expert"],
+      subscription_status: ["active", "cancelled", "expired", "suspended"],
+      subscription_tier: ["basic", "pro", "premium"],
       user_role: ["freelancer", "client", "admin"],
     },
   },

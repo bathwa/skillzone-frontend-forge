@@ -1,27 +1,21 @@
 
 import React from 'react'
 import { Navigate } from 'react-router-dom'
-import { useAuthStore } from '@/stores/authStore'
-import { Loader2 } from 'lucide-react'
+import { useAuth } from './AuthProvider'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface PublicRouteProps {
   children: React.ReactNode
 }
 
-export const PublicRoute = ({ children }: PublicRouteProps) => {
-  const { isAuthenticated, isLoading } = useAuthStore()
+export const PublicRoute: React.FC<PublicRouteProps> = ({ children }) => {
+  const { user, loading } = useAuth()
 
-  // Show loading spinner while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    )
+  if (loading) {
+    return <LoadingSpinner />
   }
 
-  // Redirect to dashboard if already authenticated
-  if (isAuthenticated) {
+  if (user) {
     return <Navigate to="/dashboard" replace />
   }
 
